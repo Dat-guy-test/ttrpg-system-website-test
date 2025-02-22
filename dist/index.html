@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/ttrpg-system-website-test/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System</title>
+    <script type="module" crossorigin src="/ttrpg-system-website-test/assets/index-CkbwHe8q.js"></script>
+    <link rel="stylesheet" crossorigin href="/ttrpg-system-website-test/assets/index-B6-0-J4H.css">
+  </head>
+  <body>
+      <noscript>
+        You need to enable JavaScript to run this.
+      </noscript>
+      
+      <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'skillTree')">Skill Tree</button>
+        <button class="tablinks" onclick="openTab(event, 'stats')">Stats</button>
+        <button class="tablinks" onclick="openTab(event, 'spellCrafring')">Spellcrafting</button>
+        <button class="tablinks" onclick="openTab(event, 'reportIssue')">Report Issue</button>
+      </div>
+
+      <div id="skillTree" class="tabcontent">
+        <div id ="wrap">
+          <div id="bor">
+            <div id="canvas"></div>
+          </div>
+          <div id="text">
+            <p>
+              <span id="nodeName">Wybierz Cuś</span>
+            </p>
+            <p>
+              <span id="nodeDesc">Opis cusia</span>
+            </p>
+            <p>
+              <span id="nodeCost">Koszt Cusia</span>
+            </p>
+            <p>
+              Perk points: <span id="perkPoints">Punkty</span>
+            </p>
+          </div>
+          </div>
+      </div>
+      <div id="stats" class="tabcontent"></div>
+      <div id="spellCrafring" class="tabcontent"></div>
+      <div id="reportIssue" class="tabcontent"></div>
+
+
+      <script>
+        function openTab(evt, tabName) {
+          var i, tabcontent, tablinks;
+          tabcontent = document.getElementsByClassName("tabcontent");
+          for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+          }
+          tablinks = document.getElementsByClassName("tablinks");
+          for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+          }
+          document.getElementById(tabName).style.display = "block";
+          if(evt != undefined) {evt.currentTarget.className += " active"};
+        }
+        openTab(event, 'skillTree')
+        </script>
+  </body>
+</html>
