@@ -57,6 +57,8 @@ var panY = 0;
 var dPanX = 0;
 var dPanY = 0;
 var panSpeed = 0;
+var iniPanCamFov = 10;
+var panCamFov = 0;
 
 class Tree {
   constructor(smolFi, highFi, smolTh, highTh) {
@@ -733,6 +735,9 @@ function computePanCamera(iniFi, iniTh, finFi, finTh) {
 function panCamera (){
   const panTime = 1; //Pan animation time in seconds
   var panDT = panclock.getElapsedTime();
+  camFov -= (panDT - panTime/2);
+  camera.fov.set(camFov);
+  camera.updateProjectionMatrix();
   if(panDT >= panTime){panCamBool = false; panDT = panTime; panclock.stop();};
   camera.rotation.set(panX + (panDT/panTime)*dPanX, panY + (panDT/panTime)*dPanY, 0)
   
