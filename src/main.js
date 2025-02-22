@@ -72,8 +72,86 @@ class Tree {
     }));
     scene.add(this.treesphere);
   }
+  createLinesNTubes(pointStart, pointEnd, smoothness, clockWise, dashed, a, b, kej, ej) {
+    // calculate a normal ( taken from Geometry().computeFaceNormals() )
+    var cb = new THREE.Vector3(), ab = new THREE.Vector3(), normal = new THREE.Vector3();
+    cb.subVectors(new THREE.Vector3(), pointEnd);
+    ab.subVectors(pointStart, pointEnd);
+    cb.cross(ab);
+    normal.copy(cb).normalize();
+  
+  
+    var angle = pointStart.angleTo(pointEnd); // get the angle between vectors
+    if (clockWise) angle = angle - Math.PI * 2;  // if clockWise is true, then we'll go the longest path
+    var angleDelta = angle / (smoothness - 1); // increment
+    const pnts = [];
+    for (var i = 0; i < smoothness; i++) {
+      pnts.push(pointStart.clone().applyAxisAngle(normal, angleDelta * i))  // this is the key operation
+    }
+  
+    const path = new THREE.CatmullRomCurve3(pnts);
+    const pathGeometry = new THREE.BufferGeometry().setFromPoints(path.getPoints(50));
+    if (dashed){
+      const pathMaterial = new THREE.LineDashedMaterial({ color: 0x666666 ,  dashSize: 0.01, gapSize: 0.01});
+      const arc = new THREE.Line(pathGeometry, pathMaterial);
+      scene.add(arc);
+      arc.computeLineDistances();
+      this.nodes[a].skyLines.push(arc);
+    } else {
+      const pathMaterial = new THREE.LineBasicMaterial({ color: 0x666666 });
+      const arc = new THREE.Line(pathGeometry, pathMaterial);
+      scene.add(arc);
+      this.nodes[a].skyLines.push(arc);
+    }
 
+
+    const pnts1h = []
+    const pnts2h = []
+    for( let i = 0; i < pnts.length ; i++){
+      if(i < pnts.length/2){
+        pnts1h.push(pnts[i]);
+      } else{
+        pnts2h.push(pnts[i]);
+      }
+    }
+
+    const path1h = new THREE.CatmullRomCurve3(pnts1h);
+    const geometry1h = new THREE.TubeGeometry( path1h, 20, 0.02, 8, false );
+    const material1h = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true,  opacity: 0.0, transparent: true} );
+    const mesh1h = new THREE.Mesh( geometry1h, material1h );
+
+
+    const path2h = new THREE.CatmullRomCurve3(pnts2h);
+    const geometry2h = new THREE.TubeGeometry( path2h, 20, 0.02, 8, false );
+    const material2h = new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: true, opacity: 0.0, transparent: true} );
+    const mesh2h = new THREE.Mesh( geometry2h, material2h );
+    if(kej == -1){
+      mesh1h.onClick = function (e){
+        if(!tr.nodes[tr.nodeIDs[tr.nodes[a].requires[b]]].isHovered){computePanCamera(camera.rotation.x, camera.rotation.y, tr.nodes[a].theta, tr.nodes[a].fi - Math.PI/2);}
+      }
+      mesh2h.onClick = function (e){
+        if(!tr.nodes[a].isHovered){computePanCamera(camera.rotation.x, camera.rotation.y, tr.nodes[tr.nodeIDs[tr.nodes[a].requires[b]]].theta, tr.nodes[tr.nodeIDs[tr.nodes[a].requires[b]]].fi - Math.PI/2);}
+      }
+      
+    } else {
+      
+      mesh1h.onClick = function (e){
+
+        if(!tr.nodes[tr.nodeIDs[ej[kej]]].isHovered){computePanCamera(camera.rotation.x, camera.rotation.y, tr.nodes[a].theta, tr.nodes[a].fi - Math.PI/2);}
+      }
+      mesh2h.onClick = function (e){
+      
+        if(!tr.nodes[a].isHovered){computePanCamera(camera.rotation.x, camera.rotation.y, tr.nodes[tr.nodeIDs[ej[kej]]].theta, tr.nodes[tr.nodeIDs[ej[kej]]].fi - Math.PI/2);}
+      }
+      
+    }
+    scene.add(mesh1h);
+    scene.add(mesh2h);
+    this.nodes[a].reqTubes.push([mesh1h, mesh2h])
+  }
   init() {
+
+
     for (let i = 0; i < this.nodes.length; i++) {//This loop makes the this.nodeIds array
       this.nodeIDs[this.nodes[i].nodeId] = i;
     }
@@ -90,13 +168,11 @@ class Tree {
               var endD = new THREE.Vector3()
               this.nodes[i].star.getWorldPosition(endD)
               this.nodes[this.nodeIDs[a[k]]].star.getWorldPosition(startT);
-              const newLine = setArc3D(startT, endD, 50, false, true);
-              scene.add(newLine);
+              this.createLinesNTubes(startT, endD, 50, false, true, i, j, k, a);
             }
           } else {//Jeżeli mamy same and (linie nieprzerywane)
             this.nodes[this.nodeIDs[this.nodes[i].requires[j]]].star.getWorldPosition(startT);
-            const newLine = setArc3D(startT, endD, 50, false, false);
-            scene.add(newLine);
+            this.createLinesNTubes(startT, endD, 50, false, false, i, j, -1, 0);
           }
         }
       }
@@ -115,6 +191,9 @@ class Tree {
 class TreeNode extends THREE.Mesh {
   constructor(anodeId, anodeName, anodeDesc, ahoverText, posX, posY, posZ, afi, atheta, requires, anodeCost, exclStuff) {
     super()
+    this.isHovered = false;
+    this.skyLines = [];
+    this.reqTubes = []; //Array storing invisible tubes used to pan camera when "lines are clicked"
     this.nodeSize = 0.05;
     this.excl = [];
     this.excl = exclStuff; //All blocks of mutually exclusive nodes containing this node
@@ -174,7 +253,7 @@ class TreeNode extends THREE.Mesh {
   onPointerOver(e) {
     this.scale.set(1.5, 1.5, 1.5);
     this.star.scale.set(1.5, 1.5, 1.5);
-
+    this.isHovered = true;
     this.nameText.position.set(this.position.x + (this.nodeSize+0.01)*(Math.sin(this.fi))*this.scale.x, this.position.y - this.centerOffset, this.position.z + (this.nodeSize + 0.01) * this.scale.z*(Math.cos(this.fi))); //The sin and cos functions correct for different points on the sphere
 
     document.getElementById("nodeName").textContent = this.nodeName;
@@ -196,6 +275,7 @@ class TreeNode extends THREE.Mesh {
 
   onPointerOut(e) {
     this.scale.set(1, 1, 1);
+    this.isHovered = false;
     this.star.scale.set(1, 1, 1);
     this.nameText.position.set(this.position.x + (this.nodeSize+0.01)*(Math.sin(this.fi))*this.scale.x, this.position.y - this.centerOffset, this.position.z+(this.nodeSize + 0.01) * this.scale.z*(Math.cos(this.fi)));
 
@@ -338,37 +418,6 @@ async function treeGen(TREEE) {
 
 };
 
-function setArc3D(pointStart, pointEnd, smoothness, clockWise, dashed) {
-  // calculate a normal ( taken from Geometry().computeFaceNormals() )
-  var cb = new THREE.Vector3(), ab = new THREE.Vector3(), normal = new THREE.Vector3();
-  cb.subVectors(new THREE.Vector3(), pointEnd);
-  ab.subVectors(pointStart, pointEnd);
-  cb.cross(ab);
-  normal.copy(cb).normalize();
-
-
-  var angle = pointStart.angleTo(pointEnd); // get the angle between vectors
-  if (clockWise) angle = angle - Math.PI * 2;  // if clockWise is true, then we'll go the longest path
-  var angleDelta = angle / (smoothness - 1); // increment
-  const pnts = [];
-  for (var i = 0; i < smoothness; i++) {
-    pnts.push(pointStart.clone().applyAxisAngle(normal, angleDelta * i))  // this is the key operation
-  }
-
-  const path = new THREE.CatmullRomCurve3(pnts);
-  const pathGeometry = new THREE.BufferGeometry().setFromPoints(path.getPoints(50));
-  if (dashed){
-    const pathMaterial = new THREE.LineDashedMaterial({ color: 0x666666,  dashSize: 0.01, gapSize: 0.01});
-    const arc = new THREE.Line(pathGeometry, pathMaterial);
-    arc.computeLineDistances();
-    return arc;
-  } else {
-    const pathMaterial = new THREE.LineBasicMaterial({ color: 0x666666 });
-    const arc = new THREE.Line(pathGeometry, pathMaterial);
-    return arc;
-  }
-}
-
 var tr = new Tree(-10, 10, -10, 10);
 
 
@@ -397,7 +446,7 @@ async function sec() {
   var vec = tr.getNodeSphericalCoordinates(1);
   console.log(vec, tr.nodes[0].fi, tr.nodes[0].theta, tr.nodes[0].position);
   camera.rotation.set(vec.y, vec.x + cameraRotationOffsetFromTree, 0);
-  camera.fov = 10.0;
+  camera.fov = 5.0;
   camera.updateProjectionMatrix();
 
 }
