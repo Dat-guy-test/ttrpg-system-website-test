@@ -24,6 +24,35 @@
   padding: 0px;
   height: 95vh;
 }
+#statsWrapper{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: 97vh;
+  background-color: rgb(187, 128, 241);
+}
+#manualWrapper{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: 97vh;
+  background-color: rgb(92, 64, 117);
+}
+#spellCraftWrapper{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: 97vh;
+  background-color: blueviolet;
+  
+}
+#reportIssueWrapper{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: 97vh;
+  background-color: rgb(91, 50, 129);
+}
 body {
   margin: 0px;
   padding: 0px;

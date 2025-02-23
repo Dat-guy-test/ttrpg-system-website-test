@@ -57,8 +57,9 @@ var panY = 0;
 var dPanX = 0;
 var dPanY = 0;
 var panSpeed = 0;
-var iniPanCamFov = 10;
+var iniPanCamFov = 5;
 var panCamFov = 0;
+var animatedNodesIDs = [];
 
 class Tree {
   constructor(smolFi, highFi, smolTh, highTh) {
@@ -118,13 +119,13 @@ class Tree {
     }
 
     const path1h = new THREE.CatmullRomCurve3(pnts1h);
-    const geometry1h = new THREE.TubeGeometry( path1h, 20, 0.02, 8, false );
+    const geometry1h = new THREE.TubeGeometry( path1h, 20, 0.01, 8, false );
     const material1h = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true,  opacity: 0.0, transparent: true} );
     const mesh1h = new THREE.Mesh( geometry1h, material1h );
 
 
     const path2h = new THREE.CatmullRomCurve3(pnts2h);
-    const geometry2h = new THREE.TubeGeometry( path2h, 20, 0.02, 8, false );
+    const geometry2h = new THREE.TubeGeometry( path2h, 20, 0.01, 8, false );
     const material2h = new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: true, opacity: 0.0, transparent: true} );
     const mesh2h = new THREE.Mesh( geometry2h, material2h );
     if(kej == -1){
@@ -235,7 +236,7 @@ class TreeNode extends THREE.Mesh {
     this.nodeActive = false
     this.sphereSize = 1
 
-    this.star = new THREE.Mesh(new THREE.SphereGeometry(0.01, 16, 16), new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: true}));
+    this.star = new THREE.Mesh(new THREE.SphereGeometry(0.01, 16, 16), new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.0, transparent: true, depthWrite: false}));
 
     this.starColour = '0xee0707';
     bloomEffect.selection.delete(this);
@@ -253,8 +254,8 @@ class TreeNode extends THREE.Mesh {
     scene.add(this.star)
   }
   onPointerOver(e) {
-    this.scale.set(1.5, 1.5, 1.5);
-    this.star.scale.set(1.5, 1.5, 1.5);
+    this.scale.set(2.0, 2.0, 2.0);
+    this.star.scale.set(2.0, 2.0, 2.0);
     this.isHovered = true;
     this.nameText.position.set(this.position.x + (this.nodeSize+0.01)*(Math.sin(this.fi))*this.scale.x, this.position.y - this.centerOffset, this.position.z + (this.nodeSize + 0.01) * this.scale.z*(Math.cos(this.fi))); //The sin and cos functions correct for different points on the sphere
 
@@ -321,7 +322,7 @@ class TreeNode extends THREE.Mesh {
       }
     }
 
-    if (this.nodeActive == true && !isNextActive(this.nodeId)) { this.nodeActive = false; perkPoints += Number(this.nodeCost); this.star.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }
+    if (this.nodeActive == true && !isNextActive(this.nodeId)) { this.nodeActive = false; perkPoints += Number(this.nodeCost); this.star.material = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.0, transparent: true, depthWrite: false}); }
     else if (perkPoints >= this.nodeCost && areReqsMet(this.requires) && isMutExclCritMet(this.nodeId) && this.nodeActive == false) { this.nodeActive = true; perkPoints -= Number(this.nodeCost); this.star.material = customMaterial; };
 
     document.getElementById("perkPoints").textContent = perkPoints;
@@ -357,6 +358,7 @@ raycaster.setFromCamera(mouse, camera)
 intersects = raycaster.intersectObjects(scene.children, true)
 var clock = new THREE.Clock();
 var panclock = new THREE.Clock();
+var animclock = new THREE.Clock();
 const stats = new Stats()
 var statsShown = false
 //Add test nodes
@@ -448,7 +450,7 @@ async function sec() {
   var vec = tr.getNodeSphericalCoordinates(1);
   console.log(vec, tr.nodes[0].fi, tr.nodes[0].theta, tr.nodes[0].position);
   camera.rotation.set(vec.y, vec.x + cameraRotationOffsetFromTree, 0);
-  camera.fov = 5.0;
+  camera.fov = iniPanCamFov;
   camera.updateProjectionMatrix();
 
 }
@@ -485,16 +487,16 @@ scene.add(sky);
   var blendTexture = new THREE.TextureLoader().load('sun.jpg');
   blendTexture.wrapS = blendTexture.wrapT = THREE.RepeatWrapping;
   // multiplier for distortion speed 
-  var blendSpeed = 0.02;
+  var blendSpeed = 0.03;
   // adjust lightness/darkness of blended texture
   var blendOffset = 0.6; //Kontrast
   // texture to determine normal displacement
   var bumpTexture = noiseTexture;
   bumpTexture.wrapS = bumpTexture.wrapT = THREE.RepeatWrapping;
   // multiplier for distortion speed 		
-  var bumpSpeed = 0.05;
+  var bumpSpeed = 0.06;
   // magnitude of normal displacement
-  var bumpScale = 0.002;
+  var bumpScale = 0.0025;
   
   // use "this." to create global object  
   var customUniforms = {
@@ -728,6 +730,7 @@ function computePanCamera(iniFi, iniTh, finFi, finTh) {
   dPanX = finFi - iniFi;
   panY = iniTh;
   dPanY = finTh - iniTh;
+  panCamFov = iniPanCamFov;
   panCamBool = true;
   panclock.start();
 }
@@ -735,12 +738,20 @@ function computePanCamera(iniFi, iniTh, finFi, finTh) {
 function panCamera (){
   const panTime = 1; //Pan animation time in seconds
   var panDT = panclock.getElapsedTime();
-  camFov -= (panDT - panTime/2);
-  camera.fov.set(camFov);
-  camera.updateProjectionMatrix();
-  if(panDT >= panTime){panCamBool = false; panDT = panTime; panclock.stop();};
+  var fac = 1.5*(Math.abs(dPanX) + Math.abs(dPanY))
+  if (fac > 0.01){
+  panCamFov -= fac*(panDT - panTime/2);
+  camera.fov = panCamFov;
+  camera.updateProjectionMatrix();}
+  if(panDT >= panTime){panCamBool = false; panCamFov = iniPanCamFov; camera.updateProjectionMatrix(); panDT = panTime; panclock.stop();};
   camera.rotation.set(panX + (panDT/panTime)*dPanX, panY + (panDT/panTime)*dPanY, 0)
-  
+}
+
+function hoverAnimation(){
+  const animtime = 2;
+  const animSize =
+  animclock.getDelta();
+
 }
 
 //Main loop
