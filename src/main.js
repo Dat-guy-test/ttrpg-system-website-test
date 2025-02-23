@@ -110,23 +110,22 @@ class Tree {
 
     const pnts1h = []
     const pnts2h = []
-    for( let i = 0; i < pnts.length ; i++){
-      if(i < pnts.length/2){
+    for( let i = 0; i < pnts.length/2 +2 ; i++){
         pnts1h.push(pnts[i]);
-      } else{
-        pnts2h.push(pnts[i]);
-      }
     }
-
+    for( let i = pnts.length/2 +1; i < pnts.length; i++){
+      pnts2h.push(pnts[i]);
+    }
+    
     const path1h = new THREE.CatmullRomCurve3(pnts1h);
     const geometry1h = new THREE.TubeGeometry( path1h, 20, 0.01, 8, false );
-    const material1h = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true,  opacity: 0.0, transparent: true} );
+    const material1h = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true,  opacity: 0.0, transparent: true, depthWrite: false} );
     const mesh1h = new THREE.Mesh( geometry1h, material1h );
 
 
     const path2h = new THREE.CatmullRomCurve3(pnts2h);
     const geometry2h = new THREE.TubeGeometry( path2h, 20, 0.01, 8, false );
-    const material2h = new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: true, opacity: 0.0, transparent: true} );
+    const material2h = new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: true, opacity: 0.0, transparent: true, depthWrite: false} );
     const mesh2h = new THREE.Mesh( geometry2h, material2h );
     if(kej == -1){
       mesh1h.onClick = function (e){
@@ -455,7 +454,7 @@ async function sec() {
 
 }
 sec();
-
+console.log(tr.nodes)
 
 
 var skyGeo = new THREE.SphereGeometry(100000, 25, 25);
@@ -685,7 +684,7 @@ window.addEventListener("keydown", function (event) {
     case "-":
       if (camera.fov < 120 && camera.fov > 2) {
         camera.fov += 1;
-        //camera.far = (1/camera.fov)*(3000*30)
+        //camera.far = (1/camera.fov)*(3000*30) 
         camera.updateProjectionMatrix();
       }
       if (camera.fov < 120 && (camera.fov <= 2)) {
