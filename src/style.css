@@ -24,11 +24,25 @@
   padding: 0px;
   height: 95vh;
 }
-#statsWrapper{
+#characterPage{
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  margin: 0px;
+  padding: 0px;
+  width: 50 vw;
+  height: 97vh;
+  overflow-y: auto;
+  align-items: start;
+  background-color: rgb(255, 255, 255);
+}
+#characterWrapper{
   display: flex;
   margin: 0px;
   padding: 0px;
   height: 97vh;
+  align-items: start;
+  justify-content: center;
   background-color: rgb(187, 128, 241);
 }
 #manualWrapper{
@@ -44,7 +58,6 @@
   padding: 0px;
   height: 97vh;
   background-color: blueviolet;
-  
 }
 #reportIssueWrapper{
   display: flex;
@@ -53,10 +66,104 @@
   height: 97vh;
   background-color: rgb(91, 50, 129);
 }
+#statistics{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 50em;
+  height: 97vh;
+  background-color: rgb(255, 255, 255);
+  color: #000000;
+}
+
+#mainStats{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 100em;
+  height: 10vh;
+  background-color: rgb(44, 159, 212);
+}
+
+#characterName{
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0px;
+  padding: 0px;
+  width: 50em;
+  height: 10em;
+  background-color: rgb(253, 35, 206);
+}
+
+#physiqueLevel{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  background-color: rgb(44, 212, 120);
+}
+
+#intellectLevel{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  background-color: rgb(12, 66, 37);
+}
+
+#willLevel{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  background-color: rgb(61, 119, 87);
+}
+
+#healthPoints{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  background-color: rgb(103, 202, 148);
+}
+
+#speed{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  background-color: rgb(16, 34, 24);
+}
+
+/* #equipment{
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 50vw;
+  height: 97vh;
+  background-color: rgb(128, 241, 207);
+} */
+
 body {
   margin: 0px;
   padding: 0px;
 }
+
+
+
+/* .centered {
+  border: 5px solid;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px;
+} */
 
 
 /* Style the tab */

@@ -60,6 +60,7 @@ var panSpeed = 0;
 var iniPanCamFov = 5;
 var panCamFov = 0;
 var animatedNodesIDs = [];
+var statsHP = [];
 
 class Tree {
   constructor(smolFi, highFi, smolTh, highTh) {
@@ -748,7 +749,7 @@ function panCamera (){
 
 function hoverAnimation(){
   const animtime = 2;
-  const animSize =
+  const animSize = 0;
   animclock.getDelta();
 
 }

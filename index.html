@@ -13,7 +13,7 @@
       
       <div class="tab">
         <button class="tablinks" onclick="openTab(event, 'skillTree')">Skill Tree</button>
-        <button class="tablinks" onclick="openTab(event, 'stats')">Stats</button>
+        <button class="tablinks" onclick="openTab(event, 'character')">Character Data</button>
         <button class="tablinks" onclick="openTab(event, 'manual')">Manual</button>
         <button class="tablinks" onclick="openTab(event, 'spellCrafring')">Spellcrafting</button>
         <button class="tablinks" onclick="openTab(event, 'reportIssue')">Report Issue</button>
@@ -40,7 +40,37 @@
           </div>
           </div>
       </div>
-      <div id="stats" class="tabcontent"><div id ="statsWrapper">TBD</div></div>
+
+      <div id="character" class="tabcontent">
+        <div id ="characterWrapper">
+          <div id = "characterPage">
+
+            <div id = "characterName">Name</div>
+            <div id = "statistics" class = "centered">
+              <div id = "mainStats">
+                <div id = "physiqueLevel">1
+                </div>
+                <div id = "intellectLevel">1
+                </div>
+                <div id = "willLevel">1
+                </div>
+                <div id = "healthPoints">
+                  <div id = "currentHealthPoints"></div>
+                  <div id = "maxHealthPoints"></div>
+                </div>
+                <div id = "speed">
+                  <div id = "currentSpeed"></div>
+                  <div id = "basicSpeed"></div>
+                </div>
+              </div>
+            </div>
+            <div id = "equipment">
+            </div>
+        </div>
+
+        </div>
+      </div>
+
       <div id="manual" class="tabcontent"><div id ="manualWrapper">TBD</div></div>
       <div id="spellCrafring" class="tabcontent"><div id ="spellCraftWrapper">TBD</div></div>
       <div id="reportIssue" class="tabcontent"><div id ="reportIssueWrapper">Napiszcie do mnie XD</div></div>
