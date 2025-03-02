@@ -25,12 +25,15 @@
   height: 95vh;
 }
 #characterPage{
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 0.2em;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
   margin: 0px;
   padding: 0px;
-  width: 50 vw;
+  width: 50 em;
   height: 97vh;
   overflow-y: auto;
   align-items: start;
@@ -57,7 +60,7 @@
   margin: 0px;
   padding: 0px;
   height: 97vh;
-  background-color: blueviolet;
+  background-color: rgb(255, 255, 255);
 }
 #reportIssueWrapper{
   display: flex;
@@ -81,11 +84,11 @@
   margin: 0px;
   padding: 0px;
   width: 100em;
-  height: 10vh;
-  background-color: rgb(44, 159, 212);
+  height: 10em;
+  background-color: rgb(255, 255, 255);
 }
 
-#characterName{
+#characterNameWrapper{
   display: flex;
   flex-wrap: wrap;
   margin: 0px;
@@ -95,13 +98,51 @@
   background-color: rgb(253, 35, 206);
 }
 
-#physiqueLevel{
+#physiqueLevelWrapper{
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(255, 255, 255);
+  border-style: outset;
+  border-width: 0.2em;
+  border-radius: 0.5em;
+}
+
+#physiqueLevelLabel{
+  box-sizing: border-box;
   display: flex;
   margin: 0px;
   padding: 0px;
   width: 10em;
   height: 10em;
-  background-color: rgb(44, 212, 120);
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(255, 255, 255);
+  border-style: outset;
+  border-width: 0.2em;
+  border-radius: 0.5em;
+}
+
+#physiqueLevelValue{
+  box-sizing: border-box;
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  width: 10em;
+  height: 10em;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(255, 255, 255);
+  border-style: outset;
+  border-width: 0.2em;
+  border-radius: 0.5em;
 }
 
 #intellectLevel{
@@ -181,7 +222,7 @@ body {
   outline: none;
   cursor: pointer;
   line-height: 1vh;
-  padding: 1vh 1vw;
+  padding: 1vh 11.7em;
   transition: 0.3s;
 }
 
