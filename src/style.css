@@ -11,6 +11,13 @@
 	height: 95vh;
   background-color: rgb(232, 172, 255);
 }
+#listTree {
+  padding: 1vh;
+	margin: 0px;
+	width: 50vw;
+	height: 95vh;
+  background-color: rgb(26, 199, 141);
+}
 #bor{
   padding: 1vh;
   margin: 0px;
@@ -71,6 +78,8 @@
 }
 #statistics{
   display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
   margin: 0px;
   padding: 0px;
   width: 50em;
@@ -78,35 +87,38 @@
   background-color: rgb(255, 255, 255);
   color: #000000;
 }
-
-#mainStats{
+.statsGroup{
   display: flex;
   margin: 0px;
   padding: 0px;
   width: 100em;
-  height: 10em;
+  height: 5em;
   background-color: rgb(255, 255, 255);
 }
 
 #characterNameWrapper{
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin: 0px;
   padding: 0px;
   width: 50em;
-  height: 10em;
-  background-color: rgb(253, 35, 206);
+  height: 5em;
+  background-color: rgb(255, 255, 255);
+  border-style: outset;
+  border-width: 0.2em;
+  border-radius: 0.5em;
 }
 
-#physiqueLevelWrapper{
+.statWrapper{
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
   margin: 0px;
   padding: 0px;
-  width: 10em;
-  height: 10em;
+  width: 16.6666666em;
+  height: 5em;
   align-items: center;
   justify-content: center;
   background-color: rgb(255, 255, 255);
@@ -115,13 +127,13 @@
   border-radius: 0.5em;
 }
 
-#physiqueLevelLabel{
+.statLabel{
   box-sizing: border-box;
   display: flex;
   margin: 0px;
   padding: 0px;
-  width: 10em;
-  height: 10em;
+  width: 16.6666666em;
+  height: 4em;
   align-items: center;
   justify-content: center;
   background-color: rgb(255, 255, 255);
@@ -130,55 +142,19 @@
   border-radius: 0.5em;
 }
 
-#physiqueLevelValue{
+.statValue{
   box-sizing: border-box;
   display: flex;
   margin: 0px;
   padding: 0px;
-  width: 10em;
-  height: 10em;
+  width: 16.6666666em;
+  height: 6em;
   align-items: center;
   justify-content: center;
   background-color: rgb(255, 255, 255);
   border-style: outset;
   border-width: 0.2em;
   border-radius: 0.5em;
-}
-
-#intellectLevel{
-  display: flex;
-  margin: 0px;
-  padding: 0px;
-  width: 10em;
-  height: 10em;
-  background-color: rgb(12, 66, 37);
-}
-
-#willLevel{
-  display: flex;
-  margin: 0px;
-  padding: 0px;
-  width: 10em;
-  height: 10em;
-  background-color: rgb(61, 119, 87);
-}
-
-#healthPoints{
-  display: flex;
-  margin: 0px;
-  padding: 0px;
-  width: 10em;
-  height: 10em;
-  background-color: rgb(103, 202, 148);
-}
-
-#speed{
-  display: flex;
-  margin: 0px;
-  padding: 0px;
-  width: 10em;
-  height: 10em;
-  background-color: rgb(16, 34, 24);
 }
 
 /* #equipment{
@@ -222,7 +198,8 @@ body {
   outline: none;
   cursor: pointer;
   line-height: 1vh;
-  padding: 1vh 11.7em;
+  padding: 1vh;
+  width: 20vw;
   transition: 0.3s;
 }
 
