@@ -669,7 +669,7 @@ function bbSpectrum(wavelength, bbTemp) {
     [r, g, b] = normRgb(r, g, b);
     [r, g, b] = [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b)];
 
-    //console.log(`  ${t} K ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`);
+    console.log(`  ${t} K ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`);
 
       function rgbToHsl(r, g, b) {
         r /= 255, g /= 255, b /= 255;
