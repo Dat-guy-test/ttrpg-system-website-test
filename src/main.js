@@ -6,6 +6,7 @@ import { WebGLRenderer } from "three";
 import { EffectComposer, EffectPass, RenderPass, SelectiveBloomEffect } from "postprocessing";
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 //Structure
 
@@ -669,7 +670,7 @@ function bbSpectrum(wavelength, bbTemp) {
     [r, g, b] = normRgb(r, g, b);
     [r, g, b] = [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b)];
 
-    console.log(`  ${t} K ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`);
+    //console.log(`  ${t} K ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`);
 
       function rgbToHsl(r, g, b) {
         r /= 255, g /= 255, b /= 255;
@@ -853,11 +854,19 @@ const hellishFont = theFontLoader.parse(HelvetikerFont);
 //General setup
 var container = document.getElementById('canvas'); //Find div in which we put the entire thing in
 var scene = new THREE.Scene(); //New scene
-var camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.00001, 100000); //Camera config
+var camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 1, 100000); //Camera config
 camera.position.set(0, 0, 0);
 camera.rotation.order = "YXZ"; //VERY IMPORTANT
-camera.layers.enableAll();
+camera.layers.enableAll();2
 //camera.rotation.set(0, -Math.PI/2, 0)
+
+var freeCamera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.00001, 100000); //Camera config
+freeCamera.position.set(0,0,0);
+freeCamera.rotation.order = "YXZ"; //VERY IMPORTANT
+freeCamera.layers.enableAll();
+
+let activeCamera = camera;
+
 const raycaster = new THREE.Raycaster() //raycaster code to enable
 const mouse = new THREE.Vector2()
 raycaster.setFromCamera(mouse, camera)
@@ -883,8 +892,9 @@ renderer.setPixelRatio(window.devicePixelRatio);
 //renderer.setAnimationLoop(animate);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloomEffect = new SelectiveBloomEffect(scene, camera, {
+let rendek = new RenderPass(scene, activeCamera);
+composer.addPass(rendek);
+const bloomEffect = new SelectiveBloomEffect(scene, activeCamera, {
   intensity: 2,
   mipmapBlur: true,
   luminanceThreshold: 0,
@@ -897,9 +907,7 @@ function addToBloom(obj) {
   obj.layers.set(BLOOM_LAYER);
   bloomEffect.selection.add(obj);
 }
-//bloomEffect.selection. .set(11);
-console.log(bloomEffect.selection.layer.valueOf());
-const effectPass = new EffectPass(camera, bloomEffect)
+const effectPass = new EffectPass(activeCamera, bloomEffect)
 effectPass.renderToScreen = true;
 composer.addPass(effectPass);
 
@@ -1049,14 +1057,14 @@ scene.add(sky);
 const horizonTexture = new THREE.TextureLoader().load('grass.jpg'); // Texture with gradient (dark to light)
 
 horizonTexture.wrapS = horizonTexture.wrapT = THREE.RepeatWrapping;
-horizonTexture.repeat.set(500, 500); // Tiling across the plane
+horizonTexture.repeat.set(50, 50); // Tiling across the plane
 const horizonMaterial = new THREE.MeshBasicMaterial({
   map: horizonTexture,
   side: THREE.DoubleSide,
   transparent: false,
   opacity: 1.0 // You can adjust this for more subtlety
 });
-const horizonGeometry = new THREE.PlaneGeometry(5000, 5000, 1, 1);  // Large plane
+const horizonGeometry = new THREE.PlaneGeometry(50, 50, 1, 1);  // Large plane
 const horizon = new THREE.Mesh(horizonGeometry, horizonMaterial);
 horizon.rotation.x = -Math.PI / 2; // Rotate to lay flat on the ground
 horizon.position.set(0, -1, 0);  // Position it slightly below the camera (ground level)
@@ -1091,6 +1099,34 @@ window.addEventListener('pointermove', (e) => {
     if (hit.object.onPointerMove) hit.object.onPointerMove(hit)
   })
 })
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Soft white light
+    scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight( 0xffffff, 2.0 );
+scene.add( directionalLight );
+const loader = new GLTFLoader();
+loader.load(
+  'Telescope.glb',  // Path to your GLB file
+  function (gltf) {
+    // This is called when the model is loaded successfully
+
+    // Add the loaded model to your scene
+    scene.add(gltf.scene);
+    
+    // Optionally scale, position, or rotate the model:
+    gltf.scene.scale.set(0.05, 0.05, 0.05);  // Scale model
+    gltf.scene.position.set(0, -1, 0);  // Position model
+    gltf.scene.rotation.set(0, Math.PI / 2, 0);  // Rotate model
+  },
+  function (xhr) {
+    // This is called during the loading process to show progress
+    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+  },
+  function (error) {
+    // This is called if an error occurs
+    console.error('An error happened while loading the model:', error);
+  }
+);
 
 //Second part of click implementation
 window.addEventListener('click', (e) => {
@@ -1145,6 +1181,20 @@ window.addEventListener("keydown", function (event) {
         statsShown = true;
         document.body.appendChild(stats.dom);
       }
+      break;
+    case "1":
+        activeCamera = camera;
+        console.log("Activating main camera...", activeCamera == camera);
+        rendek.camera = activeCamera;
+         bloomEffect.camera = activeCamera;
+         effectPass.camera = activeCamera;
+      break;
+    case "2":
+        activeCamera = freeCamera;
+        console.log("Activating free camera...", activeCamera == freeCamera);
+        rendek.camera = activeCamera;
+        bloomEffect.camera = activeCamera;
+        effectPass.camera = activeCamera;
       break;
 
     default:
@@ -1234,11 +1284,52 @@ function hoverAnimation() {
   animclock.getDelta();
 }
 
+window.addEventListener('resize', onWindowResize, false);
+
+function onWindowResize() {
+  activeCamera.aspect = container.clientWidth / container.clientHeight;
+  activeCamera.updateProjectionMatrix();
+
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+}
+window.addEventListener('keydown', (e) => {
+  keys[e.key] = true;
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.key] = false;
+});
+// Mouse movement for rotating the camera
+let isMouseDown = false;
+let lastMousePosition = { x: 0, y: 0 };
+
+window.addEventListener('mousedown', (e) => {
+  isMouseDown = true;
+});
+window.addEventListener('mouseup', (e) => {
+  isMouseDown = false;
+});
+window.addEventListener('mousemove', (e) => {
+  if (isMouseDown) {
+    let deltaX = e.clientX - lastMousePosition.x;
+    let deltaY = e.clientY - lastMousePosition.y;
+
+    // Rotate camera based on mouse movement
+    freeCamera.rotation.y -= deltaX * 0.005; // Y axis (horizontal rotation)
+    freeCamera.rotation.x -= deltaY * 0.005; // X axis (vertical rotation)
+
+    // Clamp vertical rotation to avoid flipping
+    freeCamera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, freeCamera.rotation.x));
+  }
+
+  lastMousePosition = { x: e.clientX, y: e.clientY };
+});
+
 //Main loop
 function animate() {
   stats.begin();
   var delta = clock.getDelta();
-  console.log(camera.fov);
+  //console.log(camera.fov);
   //console.log(cameraAccelerationX, cameraAccelerationY, cameraSpeedX, cameraSpeedY)
   if (panComputeBool == true) { panCamera(); }
   if (queuedZoomOut == true && zoomComputeBool == false && panCamBool == false) { queuedZoomOut = false; computeZoomCamera(-zoomDelta); }
@@ -1252,7 +1343,25 @@ function animate() {
     //console.log("Model not ready yet...");
   }
   }
-
+  const speed = 0.05;
+  if (keys['w']) {
+    freeCamera.position.z -= speed;
+  }
+  if (keys['s']) {
+    freeCamera.position.z += speed;
+  }
+  if (keys['a']) {
+    freeCamera.position.x -= speed;
+  }
+  if (keys['d']) {
+    freeCamera.position.x += speed;
+  }
+  if (keys[' ']) { // Space for moving up
+    freeCamera.position.y += speed;
+  }
+  if (keys['Shift']) { // Shift for moving down
+    freeCamera.position.y -= speed;
+  }
   //AStar.customUniforms.time.value += delta; //customUniforms.time.value += delta;
   requestAnimationFrame(animate);
   composer.render();
