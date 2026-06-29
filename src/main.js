@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 //Structure
 
+//New Comment
 
 //Cosmetics
 //Add the tome and the telescope physically
