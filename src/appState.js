@@ -10,7 +10,7 @@ export const AppState = {
   rendek: null,
   bloomEffect: null,
   effectPass: null,
-  
+
   tr: null, // Holds the Tree instance
   starClasses: [],
   perkPoints: 20,
@@ -45,11 +45,11 @@ export const AppState = {
   statsShown: false,
   container: null,
   stats: null,
-  
+
   clock: new THREE.Clock(),
   panclock: new THREE.Clock(),
   zoomclock: new THREE.Clock(),
-  
+
   hellishFont: null,
 
   // Raycaster State
