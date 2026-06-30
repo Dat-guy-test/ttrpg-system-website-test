@@ -10,8 +10,8 @@ import { EffectComposer, EffectPass, RenderPass, SelectiveBloomEffect } from "po
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js'; // 3D text geometry for node labels
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';    // For loading the telescope .glb model
- 
- 
+
+
 // ============================================================
 // ZOOM STATE
 // Tracks the current zoom level and parameters needed to
@@ -25,22 +25,22 @@ var zoomCamBool = false;    // True while a zoom animation is actively running
 var zoomComputeBool = false; // True while the per-frame zoom interpolation is being executed
 var zoomCamFov = 0;         // Working FOV value mutated each frame during a zoom
 var queuedZoomOut = false;  // If a zoom-out was requested while another animation was running, execute it next frame
- 
- 
+
+
 // ============================================================
 // BLOOM LAYER
 // Objects added to this Three.js layer are included in the
 // SelectiveBloomEffect selection; everything else is not bloomed.
 // ============================================================
 const BLOOM_LAYER = 2;
- 
- 
+
+
 // ============================================================
 // SKILL TREE GAME STATE
 // ============================================================
 var perkPoints = 20; // The player's remaining budget for purchasing skill tree nodes
- 
- 
+
+
 // ============================================================
 // PAN (CAMERA ROTATION) STATE
 // Tracks parameters needed to smoothly rotate the camera
@@ -55,8 +55,8 @@ var dPanY = 0;             // Total delta to apply to rotation.y over the animat
 var panSpeed = 0;          // (Unused — reserved for future variable-speed panning)
 var iniPanCamFov = 1;      // FOV before panning started; restored afterwards
 var panCamFov = 0;         // Working FOV value mutated during the pan (creates a slight "dolly" effect)
- 
- 
+
+
 // ============================================================
 // FREE-CAMERA MOMENTUM STATE
 // The main (skill-tree) camera uses arrow keys with momentum;
@@ -64,8 +64,8 @@ var panCamFov = 0;         // Working FOV value mutated during the pan (creates 
 // ============================================================
 var cameraAccelerationX = 0; // Current rotational velocity around X
 var cameraAccelerationY = 0; // Current rotational velocity around Y
- 
- 
+
+
 // ============================================================
 // STAR MODEL REGISTRY
 // Every TreeNode creates one StarModel (its visual star mesh
@@ -73,8 +73,8 @@ var cameraAccelerationY = 0; // Current rotational velocity around Y
 // so the main animate() loop can update their shader uniforms.
 // ============================================================
 var starClasses = [];
- 
- 
+
+
 // ============================================================
 // CLASS: Tree
 // Holds all skill-tree nodes, manages their spatial layout on
@@ -95,9 +95,9 @@ class Tree {
                         // The 0th token is the maximum number of nodes that can be active in the block.
     this.nodeIDs = [];  // Sparse map: nodeId → index in this.nodes (built in init())
     this.span = [smolFi, highFi, smolTh, highTh]; // Angular range used when projecting data coordinates onto the sphere
- 
+
     this.sphereRadius = 30; // Radius of the invisible sphere all nodes are placed on
- 
+
     // Semi-transparent purple sphere that visually bounds the skill tree.
     // Mainly useful as a development aid to see the overall tree shape.
     this.treesphere = new THREE.Mesh(
@@ -106,7 +106,7 @@ class Tree {
     );
     scene.add(this.treesphere);
   }
- 
+
   /**
    * Draws a great-circle arc (visible line) and two invisible tube halves
    * between two points on the sphere surface.
@@ -136,7 +136,7 @@ class Tree {
     ab.subVectors(pointStart, pointEnd);          // ab = start − end
     cb.cross(ab);                                 // cb = cross product → perpendicular to the arc plane
     normal.copy(cb).normalize();
- 
+
     // Walk from pointStart to pointEnd in equal angular steps around the normal axis.
     var angle = pointStart.angleTo(pointEnd);
     if (clockWise) angle = angle - Math.PI * 2;  // Go the long way around if requested
@@ -145,7 +145,7 @@ class Tree {
     for (var i = 0; i < smoothness; i++) {
       pnts.push(pointStart.clone().applyAxisAngle(normal, angleDelta * i));
     }
- 
+
     // Build and add the visible arc line to the scene.
     const path = new THREE.CatmullRomCurve3(pnts);
     const pathGeometry = new THREE.BufferGeometry().setFromPoints(path.getPoints(50));
@@ -163,25 +163,25 @@ class Tree {
       scene.add(arc);
       this.nodes[a].skyLines.push(arc);
     }
- 
+
     // Split the arc point array into two halves.
     // Each half becomes an invisible tube used as a click target for panning the camera.
     const pnts1h = []; // First half of the arc (closer to node "a")
     const pnts2h = []; // Second half of the arc (closer to the required node)
     for (let i = 0; i < pnts.length / 2 + 2; i++) { pnts1h.push(pnts[i]); }
     for (let i = pnts.length / 2 + 1; i < pnts.length; i++) { pnts2h.push(pnts[i]); }
- 
+
     // Build the two invisible tube meshes (fully transparent, wireframe, no depth write).
     const path1h = new THREE.CatmullRomCurve3(pnts1h);
     const geometry1h = new THREE.TubeGeometry(path1h, 20, 0.02, 8, false);
     const material1h = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, opacity: 0.0, transparent: true, depthWrite: false });
     const mesh1h = new THREE.Mesh(geometry1h, material1h);
- 
+
     const path2h = new THREE.CatmullRomCurve3(pnts2h);
     const geometry2h = new THREE.TubeGeometry(path2h, 20, 0.01, 8, false);
     const material2h = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true, opacity: 0.0, transparent: true, depthWrite: false });
     const mesh2h = new THREE.Mesh(geometry2h, material2h);
- 
+
     // Assign click handlers to each tube half.
     // Clicking the first half pans toward node "a" (the destination node).
     // Clicking the second half pans toward the required node (the source).
@@ -214,12 +214,12 @@ class Tree {
         }
       }
     }
- 
+
     scene.add(mesh1h);
     scene.add(mesh2h);
     this.nodes[a].reqTubes.push([mesh1h, mesh2h]); // Store the pair so it can be accessed later if needed
   }
- 
+
   /**
    * Called once after all nodes have been added.
    * 1) Builds the nodeIDs lookup map (nodeId → array index).
@@ -230,14 +230,14 @@ class Tree {
     for (let i = 0; i < this.nodes.length; i++) {
       this.nodeIDs[this.nodes[i].nodeId] = i;
     }
- 
+
     // Draw lines between every node and each of its requirements.
     for (let i = 0; i < this.nodes.length; i++) {
       for (let j = 0; j < this.nodes[i].requires.length; j++) {
         var startT = new THREE.Vector3(); // World position of the required (source) node
         var endD = new THREE.Vector3();   // World position of the current (destination) node
         this.nodes[i].star.getWorldPosition(endD);
- 
+
         if (this.nodes[i].requires[j].includes("o")) {
           // OR requirement: the requirement string contains "o" as a delimiter between node IDs.
           // Each ID in the group gets its own dashed arc.
@@ -257,7 +257,7 @@ class Tree {
       }
     }
   }
- 
+
   /**
    * Returns the spherical coordinates (fi, theta) of a node by its ID.
    * @param {string|number} ID - The nodeId to look up
@@ -266,7 +266,7 @@ class Tree {
   getNodeSphericalCoordinates(ID) {
     return new THREE.Vector2(this.nodes[this.nodeIDs[ID]].getFi(), this.nodes[this.nodeIDs[ID]].getTheta());
   }
- 
+
   /**
    * Returns the world-space position of a node's invisible sphere by its ID.
    * @param {string|number} ID - The nodeId to look up
@@ -278,8 +278,8 @@ class Tree {
     return vSpecVec;
   }
 }
- 
- 
+
+
 // ============================================================
 // CLASS: TreeNode  (extends THREE.Mesh)
 // Represents a single perk/skill in the skill tree.
@@ -310,25 +310,25 @@ class TreeNode extends THREE.Mesh {
     this.isHovered = false; // True while the pointer is over this node's invisible sphere
     this.skyLines = [];     // References to the arc Line objects connected to this node
     this.reqTubes = [];     // Pairs of invisible tube meshes placed along each requirement arc
- 
+
     // Node visual size scales with cost, with a minimum for free nodes
     if (anodeCost < 1) {
       this.nodeSize = 0.05;
     } else {
       this.nodeSize = 0.05 * ((anodeCost) ^ (1 / 3)); // Note: ^ is bitwise XOR in JS, not exponentiation
     }
- 
+
     this.excl = exclStuff; // Mutual-exclusion group data (see isMutExclCritMet in onClick)
- 
+
     // fi is negated here so that positive fi values in the data file map to the expected visual direction
     this.fi = -afi;
     this.theta = atheta;
- 
+
     // The TreeNode mesh itself is an invisible sphere used only as a raycaster hit target
     this.geometry = new THREE.SphereGeometry(this.nodeSize, 16, 16);
     this.material = new THREE.MeshBasicMaterial({ color: 0x999999, wireframe: true, opacity: 0.002, transparent: true, depthWrite: false });
     this.position.set(posX, posY, posZ);
- 
+
     // ---- 3D Text Label ----
     // Build the text geometry for the node name, placed just outside the node's sphere surface.
     this.nameTextGeometry = new TextGeometry(anodeName, {
@@ -347,11 +347,11 @@ class TreeNode extends THREE.Mesh {
       new THREE.MeshBasicMaterial({ color: 0x00aaaa })  // Side/depth face of the extruded text
     ];
     this.nameText = new THREE.Mesh(this.nameTextGeometry, this.nameTextMaterials);
- 
+
     // Compute the text bounding box to vertically centre the label on the node
     this.nameTextGeometry.computeBoundingBox();
     this.centerOffset = 0.5 * (this.nameTextGeometry.boundingBox.max.y - this.nameTextGeometry.boundingBox.min.y);
- 
+
     // Position the label tangentially on the sphere surface (offset by fi direction)
     this.nameText.position.set(
       this.position.x + (this.nodeSize + 0.01) * Math.sin(this.fi),
@@ -361,20 +361,20 @@ class TreeNode extends THREE.Mesh {
     // Rotate the label to face outward from the sphere surface
     this.nameText.rotation.set(0, -Math.PI * 1 / 2 + this.fi, 0);
     scene.add(this.nameText);
- 
+
     // ---- Star Model ----
     // Register a StarModel (handles async texture loading and the lava shader) for this node.
     // starID lets us find this node's StarModel in the global starClasses array.
     this.starID = starClasses.length;
     starClasses.push(new StarModel(this.temperature));
- 
+
     // Core node properties
     this.nodeName = anodeName;
     this.nodeDesc = anodeDesc;
     this.nodeCost = anodeCost;
     this.nodeActive = false; // Whether the player has purchased this node
     this.sphereSize = 1;     // (Unused — reserved for potential future size scaling)
- 
+
     // ---- Visible Star Mesh ----
     // A small sphere that shows the node's position. Starts fully transparent (invisible).
     // When the player activates a node, this mesh's material is swapped to the animated lava shader.
@@ -382,23 +382,23 @@ class TreeNode extends THREE.Mesh {
       new THREE.SphereGeometry(this.nodeSize / 4, 16, 16),
       new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.0, transparent: true, depthWrite: false })
     );
- 
+
     // Add the star to the bloom effect so it glows when active
     addToBloom(this.star);
- 
+
     this.hovertext = ahoverText;
     this.nodeName = anodeName;
     this.nodeDesc = anodeDesc;
     this.nodeId = anodeId;
- 
+
     // Parse requirements: a single "-" token means this node has no prerequisites
     if (requires[0] === "-") { this.requires = []; }
     else { this.requires = requires; }
- 
+
     this.star.position.set(posX, posY, posZ);
     scene.add(this.star);
   }
- 
+
   /**
    * Called by the pointer-move handler when the cursor enters this node's bounding sphere.
    * Scales the node up, updates the label position, and fills the UI info panel.
@@ -407,9 +407,9 @@ class TreeNode extends THREE.Mesh {
     // Scale up the invisible hit sphere and the visible star mesh to indicate hover
     this.scale.set(2.0, 2.0, 2.0);
     this.star.scale.set(2.0, 2.0, 2.0);
- 
+
     this.isHovered = true;
- 
+
     // Reposition the label to follow the scaled-up node surface
     // (The sin/cos offsets keep the label tangent to the sphere at any position)
     this.nameText.position.set(
@@ -417,7 +417,7 @@ class TreeNode extends THREE.Mesh {
       this.position.y - this.centerOffset,
       this.position.z + (this.nodeSize + 0.01) * Math.cos(this.fi) * this.scale.z
     );
- 
+
     // Populate the right-hand UI panel with this node's details
     document.getElementById("nodeName").textContent = this.nodeName;
     const nodeDescNode = document.getElementById("nodeDesc");
@@ -433,7 +433,7 @@ class TreeNode extends THREE.Mesh {
     document.getElementById("nodeCost").textContent = "Cost: " + this.nodeCost;
     document.getElementById("perkPoints").textContent = perkPoints;
   }
- 
+
   /**
    * Called by the pointer-move handler when the cursor leaves this node's bounding sphere.
    * Restores scale and repositions the label.
@@ -449,7 +449,7 @@ class TreeNode extends THREE.Mesh {
       this.position.z + (this.nodeSize + 0.01) * Math.cos(this.fi) * this.scale.z
     );
   }
- 
+
   /**
    * Called when the player clicks on this node.
    *
@@ -495,7 +495,7 @@ class TreeNode extends THREE.Mesh {
       }
       return false;
     }
- 
+
     /**
      * Checks whether activating `passedIdNum` would violate any mutual-exclusion rule.
      * The excl array for a node lists all mutual-exclusion groups it belongs to.
@@ -517,7 +517,7 @@ class TreeNode extends THREE.Mesh {
       if (count >= arr[0]) { return false; }
       return true;
     }
- 
+
     if (this.nodeActive == true && !isNextActive(this.nodeId)) {
       // Deactivate: refund cost and restore the invisible (black) star material
       this.nodeActive = false;
@@ -529,25 +529,25 @@ class TreeNode extends THREE.Mesh {
       perkPoints -= Number(this.nodeCost);
       this.star.material = starClasses[this.starID].customMaterial;
     }
- 
+
     // Update the perk points display in the UI
     document.getElementById("perkPoints").textContent = perkPoints;
- 
+
     // Pan the camera to face this node
     if (panCamBool == false && zoomCamBool == false) {
       panCamBool = true;
       computePanCamera(camera.rotation.x, camera.rotation.y, this.theta, this.fi - Math.PI / 2);
     }
   }
- 
+
   /** Returns the node's fi (longitude) angle. Used by Tree helpers. */
   getFi() { return this.fi; }
- 
+
   /** Returns the node's theta (latitude) angle. Used by Tree helpers. */
   getTheta() { return this.theta; }
 }
- 
- 
+
+
 // ============================================================
 // CLASS: StarModel
 // Manages the animated lava-shader material applied to a skill
@@ -566,7 +566,7 @@ class StarModel {
    */
   constructor(temperature) {
     this.temperature = temperature;
- 
+
     // Shader animation parameters (passed as GLSL uniforms)
     this.baseSpeed  = 0.0001; // How fast the surface texture scrolls
     this.repeatS    = 1.0;    // UV tiling in the S direction
@@ -576,9 +576,9 @@ class StarModel {
     this.blendOffset = 0.6;   // Brightness offset subtracted from the blend layer
     this.bumpSpeed  = 0.06;   // Speed of the vertex displacement (bump) scroll
     this.bumpScale  = 0.0025; // Magnitude of vertex displacement
- 
+
     this.isReady = false; // Becomes true once textures are loaded and material is built
- 
+
     // Begin async texture loading; material is created inside the .then() callback
     this.loadTextures().then(() => {
       this.createMaterial();
@@ -587,7 +587,7 @@ class StarModel {
       console.error("Error loading textures:", err);
     });
   }
- 
+
   /**
    * Loads 'sun.jpg' and 'cloud.png', recolours sun.jpg to the correct star temperature,
    * assigns the results to instance properties, and sets all textures to repeat-wrap.
@@ -606,20 +606,20 @@ class StarModel {
           this.noiseTexture  = noiseTexture;
           this.blendTexture  = this.lavaTexture;  // The blend layer reuses the colour-shifted surface texture
           this.bumpTexture   = this.noiseTexture; // The bump layer reuses the noise texture
- 
+
           // All four textures must repeat seamlessly for the scrolling shader to work
           this.lavaTexture.wrapS  = this.lavaTexture.wrapT  = THREE.RepeatWrapping;
           this.noiseTexture.wrapS = this.noiseTexture.wrapT = THREE.RepeatWrapping;
           this.blendTexture.wrapS = this.blendTexture.wrapT = THREE.RepeatWrapping;
           this.bumpTexture.wrapS  = this.bumpTexture.wrapT  = THREE.RepeatWrapping;
- 
+
           resolve();
         }).catch(reject);
       })
       .catch(reject);
     });
   }
- 
+
   /**
    * Wraps THREE.TextureLoader in a Promise for use with async/await.
    * @param {string} url - Path to the texture file
@@ -635,7 +635,7 @@ class StarModel {
       );
     });
   }
- 
+
   /**
    * Recolours a texture to match a given blackbody temperature.
    *
@@ -663,11 +663,11 @@ class StarModel {
       ctx.drawImage(texture.image, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data; // Flat RGBA array
- 
+
       // ---- CIE Colour Science Helpers ----
       // These implement the pipeline described in John Walker's "Colour Rendering of Spectra"
       // Reference: https://www.fourmilab.ch/documents/specrend/
- 
+
       /** Represents an RGB colour primaries + white point for a display standard. */
       class ColourSystem {
         constructor(name, xRed, yRed, xGreen, yGreen, xBlue, yBlue, xWhite, yWhite, gamma) {
@@ -679,14 +679,14 @@ class StarModel {
           this.gamma = gamma;
         }
       }
- 
+
       // CIE standard illuminant chromaticities
       const IlluminantC   = [0.3101, 0.3162];
       const IlluminantD65 = [0.3127, 0.3291];
       const IlluminantE   = [0.33333333, 0.33333333];
- 
+
       const GAMMA_REC709 = 0; // Special sentinel: use Rec. 709 transfer function instead of a plain gamma
- 
+
       // Pre-built colour system definitions (only SMPTEsystem is used below)
       const NTSCsystem  = new ColourSystem("NTSC",          0.67,   0.33,   0.21,  0.71,  0.14,  0.08,  ...IlluminantC,   GAMMA_REC709);
       const EBUsystem   = new ColourSystem("EBU (PAL/SECAM)",0.64,   0.33,   0.29,  0.60,  0.15,  0.06,  ...IlluminantD65, GAMMA_REC709);
@@ -694,7 +694,7 @@ class StarModel {
       const HDTVsystem  = new ColourSystem("HDTV",           0.670,  0.330,  0.210, 0.710, 0.150, 0.060, ...IlluminantD65, GAMMA_REC709);
       const CIEsystem   = new ColourSystem("CIE",            0.7355, 0.2645, 0.2658,0.7243,0.1669,0.0085,...IlluminantE,   GAMMA_REC709);
       const Rec709system= new ColourSystem("CIE REC 709",    0.64,   0.33,   0.30,  0.60,  0.15,  0.06,  ...IlluminantD65, GAMMA_REC709);
- 
+
       // CIE u'v' ↔ xy chromaticity conversions (not currently used in the main path, kept for completeness)
       function upvpToXY(up, vp) {
         const xc = (9 * up) / ((6 * up) - (16 * vp) + 12);
@@ -706,7 +706,7 @@ class StarModel {
         const vp = (9 * yc) / ((-2 * xc) + (12 * yc) + 3);
         return [up, vp];
       }
- 
+
       /**
        * Converts CIE XYZ to linear RGB using the specified ColourSystem's primary matrices.
        * Builds a 3×3 chromatic adaptation matrix and applies it.
@@ -716,31 +716,31 @@ class StarModel {
         const xg = cs.xGreen, yg = cs.yGreen, zg = 1 - (xg + yg);
         const xb = cs.xBlue,  yb = cs.yBlue,  zb = 1 - (xb + yb);
         const xw = cs.xWhite, yw = cs.yWhite, zw = 1 - (xw + yw);
- 
+
         var rx = (yg * zb) - (yb * zg), ry = (xb * zg) - (xg * zb), rz = (xg * yb) - (xb * yg);
         var gx = (yb * zr) - (yr * zb), gy = (xr * zb) - (xb * zr), gz = (xb * yr) - (xr * yb);
         var bx = (yr * zg) - (yg * zr), by = (xg * zr) - (xr * zg), bz = (xr * yg) - (xg * yr);
- 
+
         const rw = ((rx * xw) + (ry * yw) + (rz * zw)) / yw;
         const gw = ((gx * xw) + (gy * yw) + (gz * zw)) / yw;
         const bw = ((bx * xw) + (by * yw) + (bz * zw)) / yw;
- 
+
         // Normalise rows by white-point weights
         rx /= rw; ry /= rw; rz /= rw;
         gx /= gw; gy /= gw; gz /= gw;
         bx /= bw; by /= bw; bz /= bw;
- 
+
         const r = (rx * xc) + (ry * yc) + (rz * zc);
         const g = (gx * xc) + (gy * yc) + (gz * zc);
         const b = (bx * xc) + (by * yc) + (bz * zc);
         return [r, g, b];
       }
- 
+
       /** Returns true if all channels are non-negative (i.e. the colour is within the display gamut). */
       function insideGamut(r, g, b) {
         return (r >= 0) && (g >= 0) && (b >= 0);
       }
- 
+
       /**
        * Shifts an out-of-gamut colour toward white until all channels are ≥ 0.
        * Returns true if a correction was applied.
@@ -750,7 +750,7 @@ class StarModel {
         if (w > 0) { r += w; g += w; b += w; return true; }
         return false;
       }
- 
+
       /**
        * Applies Rec. 709 gamma correction (or a plain power-law gamma) to a single channel.
        * @param {ColourSystem} cs - The colour system (for its gamma value)
@@ -768,12 +768,12 @@ class StarModel {
         }
         return c;
       }
- 
+
       /** Applies gamma correction to all three RGB channels. */
       function gammaCorrectRgb(cs, r, g, b) {
         return [gammaCorrect(cs, r), gammaCorrect(cs, g), gammaCorrect(cs, b)];
       }
- 
+
       /**
        * Normalises RGB so the brightest channel becomes 1.0.
        * Ensures the colour is as vivid as possible on screen while preserving hue.
@@ -783,7 +783,7 @@ class StarModel {
         if (greatest > 0) { return [r / greatest, g / greatest, b / greatest]; }
         return [r, g, b];
       }
- 
+
       /**
        * Integrates a spectral power distribution against CIE 1931 colour-matching functions
        * to produce normalised CIE xy chromaticity (z = 1 - x - y implicit).
@@ -824,7 +824,7 @@ class StarModel {
           [0.0002,0.0001,0.0000],[0.0002,0.0001,0.0000],[0.0001,0.0000,0.0000],
           [0.0001,0.0000,0.0000],[0.0001,0.0000,0.0000],[0.0000,0.0000,0.0000]
         ];
- 
+
         let X = 0, Y = 0, Z = 0;
         for (let i = 0, lambda = 380; lambda < 780.1; i++, lambda += 5) {
           const Me = specIntens(lambda);
@@ -835,7 +835,7 @@ class StarModel {
         const XYZ = (X + Y + Z);
         return [X / XYZ, Y / XYZ, Z / XYZ]; // Normalised chromaticity coordinates
       }
- 
+
       /**
        * Planck's law: spectral radiance of a blackbody at a given wavelength and temperature.
        * Returns relative radiance (absolute scale doesn't matter for colour computation).
@@ -848,7 +848,7 @@ class StarModel {
         const wlm = wavelength * 1e-9; // Convert nm to metres
         return (3.74183e-16 * Math.pow(wlm, -5.0)) / (Math.exp(1.4388e-2 / (wlm * bbTemp)) - 1.0);
       }
- 
+
       // ---- Compute the target star colour from its blackbody temperature ----
       const cs = SMPTEsystem; // Use SMPTE primaries for the colour conversion
       const bbTemp = this.temperature;
@@ -856,7 +856,7 @@ class StarModel {
       var [r, g, b] = xyzToRgb(cs, x, y, z);
       [r, g, b] = normRgb(r, g, b);                               // Normalise to [0, 1]
       [r, g, b] = [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b)]; // Scale to 0–255
- 
+
       // Convert the target colour to HSL so we can apply it pixel-by-pixel
       // while preserving the original texture's lightness variation.
       function rgbToHsl(r, g, b) {
@@ -877,7 +877,7 @@ class StarModel {
         }
         return [h, s, l];
       }
- 
+
       function hslToRgb(h, s, l) {
         var r, g, b;
         if (s == 0) {
@@ -900,10 +900,10 @@ class StarModel {
         }
         return [r, g, b];
       }
- 
+
       let h, s, l;
       [h, s, l] = rgbToHsl(r, g, b);
- 
+
       // Recolour every pixel: keep the original brightness (greyscale value) but swap to the
       // star's hue and saturation. This tints the texture to the correct stellar colour
       // while keeping all the surface detail (bright spots, dark patches) intact.
@@ -916,13 +916,13 @@ class StarModel {
         data[i + 2] = b; // B
         // Alpha channel (data[i + 3]) is left unchanged
       }
- 
+
       ctx.putImageData(imageData, 0, 0);
       const newTexture = new THREE.CanvasTexture(canvas); // Wrap the modified canvas as a Three.js texture
       resolve(newTexture);
     });
   }
- 
+
   /**
    * Builds the custom GLSL ShaderMaterial used to render the animated star surface.
    *
@@ -953,7 +953,7 @@ class StarModel {
       alpha:        { type: "f", value: 1.0 },                 // Global opacity
       time:         { type: "f", value: 1.0 }                  // Elapsed time (incremented in animate())
     };
- 
+
     this.customMaterial = new THREE.ShaderMaterial({
       uniforms: this.customUniforms,
       vertexShader: `
@@ -1029,17 +1029,17 @@ class StarModel {
           } 
         `
     });
- 
+
     this.customMaterial.transparent = true;
     this.customMaterial.opacity = 0.9;
     this.customMaterial.needsUpdate = true;
   }
- 
+
   /** Returns true once all textures are loaded and the ShaderMaterial has been built. */
   isModelReady() { return this.isReady; }
 }
- 
- 
+
+
 // ============================================================
 // RAYCASTER / HOVER TRACKING
 // intersects: the list of objects hit by the raycaster this frame
@@ -1047,50 +1047,50 @@ class StarModel {
 // ============================================================
 let intersects = [];
 let hovered = {};
- 
+
 // Parse the bundled Helvetiker font once; reused by all TreeNode text labels
 const theFontLoader = new FontLoader();
 const hellishFont = theFontLoader.parse(HelvetikerFont);
- 
- 
+
+
 // ============================================================
 // SCENE SETUP
 // ============================================================
 var container = document.getElementById('canvas'); // The <div> that hosts the Three.js canvas
 var scene = new THREE.Scene();
- 
+
 // Main (skill-tree) camera — fixed at the origin, looks outward.
 // The skill tree sphere is around it; rotating the camera is how the player "navigates".
 var camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 1, 100000);
 camera.position.set(0, 0, 0);
 camera.rotation.order = "YXZ"; // YXZ order prevents gimbal lock for typical sky-looking rotations
 camera.layers.enableAll(); // Must see all layers including the bloom layer
- 
+
 // Free camera — a separate camera the player can move freely with WASD + mouse drag (toggle with key "2")
 var freeCamera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.00001, 100000);
 freeCamera.position.set(0, 0, 0);
 freeCamera.rotation.order = "YXZ";
 freeCamera.layers.enableAll();
- 
+
 let activeCamera = camera; // Whichever camera is currently rendering (switchable with "1"/"2")
- 
+
 // Raycaster setup — updated every pointer-move event
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 raycaster.setFromCamera(mouse, camera);
 intersects = raycaster.intersectObjects(scene.children, true);
- 
+
 // Clocks for time-delta calculations in different subsystems
 var clock = new THREE.Clock();       // General per-frame delta (shader time, star animation)
 var cameraClock = new THREE.Clock(); // Delta for free-camera momentum calculations
 var panclock = new THREE.Clock();    // Elapsed time for pan animations
 var zoomclock = new THREE.Clock();   // Elapsed time for zoom animations
 var animclock = new THREE.Clock();   // Reserved for future hover animations (currently unused)
- 
+
 const stats = new Stats();  // FPS/memory overlay; appended to DOM when Tab is pressed
 var statsShown = false;
- 
- 
+
+
 // ============================================================
 // RENDERER & POST-PROCESSING PIPELINE
 // Order: scene → RenderPass → SelectiveBloomEffect → screen
@@ -1105,11 +1105,11 @@ container.appendChild(renderer.domElement);
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
- 
+
 const composer = new EffectComposer(renderer);
 let rendek = new RenderPass(scene, activeCamera); // Standard scene render pass
 composer.addPass(rendek);
- 
+
 // Selective bloom: only objects in the bloom selection (added via addToBloom()) glow.
 const bloomEffect = new SelectiveBloomEffect(scene, activeCamera, {
   intensity: 2,
@@ -1120,7 +1120,7 @@ const bloomEffect = new SelectiveBloomEffect(scene, activeCamera, {
   radius: 0.9,
   ignoreBackground: true
 });
- 
+
 /**
  * Moves an object onto the bloom layer and registers it with the bloom effect's selection set.
  * Only objects registered here will emit glow.
@@ -1130,12 +1130,12 @@ function addToBloom(obj) {
   obj.layers.set(BLOOM_LAYER);
   bloomEffect.selection.add(obj);
 }
- 
+
 const effectPass = new EffectPass(activeCamera, bloomEffect); // Applies bloom and renders to screen
 effectPass.renderToScreen = true;
 composer.addPass(effectPass);
- 
- 
+
+
 // ============================================================
 // TREE DATA LOADING
 // Fetches the node data and mutually-exclusive group data from
@@ -1166,7 +1166,7 @@ async function treeGen(TREEE) {
     atrs[i] = lines[i].split(" | ");        // Split into fields
     atrs[i][6] = atrs[i][6].split(" ");     // Field 6 (requires) is space-separated; convert to array
   }
- 
+
   // Find the min/max fi and theta grid coordinates so we can normalise them
   var bigFi = 0, lowFi = 0, bigTh = 0, lowTh = 0;
   for (let i = 0; i < atrs.length; i++) {
@@ -1177,13 +1177,13 @@ async function treeGen(TREEE) {
   }
   var fiSteps = bigFi - lowFi; // Total span of fi grid coordinates
   var thSteps = bigTh - lowTh; // Total span of theta grid coordinates
- 
+
   // Convert the Tree's angular span (degrees) to radians
   var minKorFi = TREEE.span[0] * (Math.PI / 180);
   var maxKorFi = TREEE.span[1] * (Math.PI / 180);
   var minKorTh = TREEE.span[2] * (Math.PI / 180);
   var maxKorTh = TREEE.span[3] * (Math.PI / 180);
- 
+
   // ---- Fetch and parse mutually-exclusive group data ----
   const response2 = await fetch("https://raw.githubusercontent.com/Dat-guy-test/project/refs/heads/main/mutuallyExclusive");
   const data2 = await response2.text();
@@ -1199,18 +1199,18 @@ async function treeGen(TREEE) {
       }
     }
   }
- 
+
   // ---- Instantiate all TreeNodes ----
   for (let i = 0; i < lines.length - 1; i++) {
     // Map the node's grid coordinates onto spherical angles
     var fi = minKorFi + (atrs[i][4] - lowFi) * (maxKorFi - minKorFi) / fiSteps;
     var th = minKorTh + (atrs[i][5] - lowTh) * (maxKorTh - minKorTh) / thSteps;
- 
+
     // Convert spherical (fi, theta) to Cartesian (x, y, z) on the skill-tree sphere
     var iks  = TREEE.sphereRadius * Math.cos(th) * Math.cos(fi); // x
     var igrek = TREEE.sphereRadius * Math.sin(th);               // y
     var zet  = TREEE.sphereRadius * Math.cos(th) * Math.sin(fi); // z
- 
+
     TREEE.nodes[i] = new TreeNode(
       atrs[i][0],  // nodeId
       atrs[i][1],  // nodeName
@@ -1227,12 +1227,12 @@ async function treeGen(TREEE) {
   }
   cameraRotationOffsetFromTree = -Math.PI / 2; // Rotate camera so it faces into the tree correctly
 }
- 
+
 // Instantiate the skill tree with its angular span (degrees):
 //   fi: 0° – 40°, theta: 20° – 60°
 var tr = new Tree(0, 40, 20, 60);
- 
- 
+
+
 // ============================================================
 // REQUIREMENT CHECK HELPER
 // Used globally by TreeNode.onClick to verify that all
@@ -1265,19 +1265,19 @@ function areReqsMet(reqs) {
   }
   return true;
 }
- 
- 
+
+
 // ============================================================
 // INITIALISATION SEQUENCE
 // Waits for tree data to load, then builds the arc connections
 // and orients the camera toward the root node.
 // ============================================================
 var cameraRotationOffsetFromTree = 0; // Set to -π/2 after loading to face the tree correctly
- 
+
 async function sec() {
   await treeGen(tr);  // Load data and create all TreeNode meshes
   tr.init();          // Build nodeIDs map and draw all connecting arcs
- 
+
   // Point the main camera at node ID 1 (the root "Adventurer" node)
   var vec = tr.getNodeSphericalCoordinates(1);
   camera.rotation.set(vec.y, vec.x + cameraRotationOffsetFromTree, 0);
@@ -1286,8 +1286,8 @@ async function sec() {
 }
 sec();
 console.log(tr.nodes); // Expose the nodes array in the browser console for debugging
- 
- 
+
+
 // ============================================================
 // SKYBOX (procedural gradient)
 // A giant sphere surrounding everything, rendered on the inside
@@ -1325,8 +1325,8 @@ const skyMat = new THREE.ShaderMaterial({
 var sky = new THREE.Mesh(skyGeo, skyMat);
 sky.material.side = THREE.BackSide; // Render the inside of the sphere
 scene.add(sky);
- 
- 
+
+
 // ============================================================
 // GROUND PLANE (horizon / grass)
 // A flat textured plane sitting just below the origin,
@@ -1336,7 +1336,7 @@ scene.add(sky);
 const horizonTexture = new THREE.TextureLoader().load('grass.jpg');
 horizonTexture.wrapS = horizonTexture.wrapT = THREE.RepeatWrapping;
 horizonTexture.repeat.set(50, 50); // Tile the texture 50×50 across the plane
- 
+
 const horizonMaterial = new THREE.MeshBasicMaterial({
   map: horizonTexture,
   side: THREE.DoubleSide,
@@ -1350,8 +1350,8 @@ horizon.position.set(0, -1, 0);    // Sink it 1 unit below the camera origin
 horizon.layers.set(0);             // Keep on the default layer (not bloomed)
 bloomEffect.selection.delete(horizon); // Explicitly exclude from bloom
 scene.add(horizon);
- 
- 
+
+
 // ============================================================
 // POINTER MOVE — HOVER DETECTION
 // Raycasts every frame to find which scene objects are under
@@ -1363,7 +1363,7 @@ window.addEventListener('pointermove', (e) => {
   mouse.set((e.offsetX / container.clientWidth) * 2 - 1, -(e.offsetY / container.clientHeight) * 2 + 1);
   raycaster.setFromCamera(mouse, camera);
   intersects = raycaster.intersectObjects(scene.children, true);
- 
+
   // For each previously-hovered object that's no longer in the hit list, fire onPointerOut
   Object.keys(hovered).forEach((key) => {
     const hit = intersects.find((hit) => hit.object.uuid === key);
@@ -1373,7 +1373,7 @@ window.addEventListener('pointermove', (e) => {
       delete hovered[key];
     }
   });
- 
+
   // For each newly-hit object, fire onPointerOver; for all hit objects, fire onPointerMove
   intersects.forEach((hit) => {
     if (!hovered[hit.object.uuid]) {
@@ -1383,18 +1383,18 @@ window.addEventListener('pointermove', (e) => {
     if (hit.object.onPointerMove) { hit.object.onPointerMove(hit); }
   });
 });
- 
- 
+
+
 // ============================================================
 // SCENE LIGHTING
 // ============================================================
 const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Soft fill light (no shadows)
 scene.add(ambientLight);
- 
+
 const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0); // Key light from default direction
 scene.add(directionalLight);
- 
- 
+
+
 // ============================================================
 // TELESCOPE MODEL
 // Loads a decorative GLB model placed at the scene origin.
@@ -1415,8 +1415,8 @@ loader.load(
     console.error('An error happened while loading the model:', error);
   }
 );
- 
- 
+
+
 // ============================================================
 // CLICK — NODE ACTIVATION
 // Fires onClick on any hit object that has one (TreeNodes and
@@ -1427,8 +1427,8 @@ window.addEventListener('click', (e) => {
     if (hit.object.onClick) { hit.object.onClick(hit); }
   });
 });
- 
- 
+
+
 // ============================================================
 // KEYBOARD INPUT STATE
 // Tracks which keys are currently held down for per-frame
@@ -1443,7 +1443,7 @@ const keys = {
 window.addEventListener("keyup", function (event) {
   if (event.key in keys) { keys[event.key] = false; }
 });
- 
+
 // Keyboard controls:
 //   Escape    - Print camera rotation and first node angles to console (debug)
 //   =         - Zoom in (decrease FOV by 1 step)
@@ -1502,8 +1502,43 @@ window.addEventListener("keydown", function (event) {
   }
   event.preventDefault(); // Prevent browser default (e.g. Tab focusing next element)
 }, true);
- 
- 
+
+
+// ============================================================
+// MOUSE WHEEL — ZOOM
+// Mirrors the "=" / "-" key zoom behaviour above, but driven by
+// the scroll wheel instead. Each wheel "tick" works exactly like
+// one key press: it nudges zoomStage by 1 and triggers the same
+// computeZoomCamera() animation used elsewhere, so the smooth
+// FOV interpolation in zoomCamera() (per-frame, in animate())
+// stays completely shared between both input methods.
+//
+// Scroll wheels fire many events per physical "click" of the
+// wheel in quick succession (unlike discrete keydown events), so
+// events are ignored entirely while zoomCamBool/panCamBool are
+// true instead of being queued — this keeps one wheel tick roughly
+// equal to one zoom step, the same granularity as a key press,
+// rather than racing several zoom animations against each other.
+// ============================================================
+window.addEventListener("wheel", function (event) {
+  event.preventDefault(); // Prevent the page itself from scrolling
+
+  if (event.deltaY < 0) {
+    // Scrolling up/away from the user — zoom in (same condition as the "=" key case)
+    if (zoomStage > 0) {
+      if (zoomCamBool == false && panCamBool == false) { zoomCamBool = true; zoomStage -= 1; computeZoomCamera(-1); }
+      camera.updateProjectionMatrix();
+    }
+  } else if (event.deltaY > 0) {
+    // Scrolling down/toward the user — zoom out (same condition as the "-" key case)
+    if (zoomStage >= 0 && zoomStage < 60) {
+      if (zoomCamBool == false && panCamBool == false) { zoomCamBool = true; zoomStage += 1; computeZoomCamera(1); }
+      camera.updateProjectionMatrix();
+    }
+  }
+}, { passive: false }); // passive: false is required so preventDefault() above actually works
+
+
 // ============================================================
 // FREE CAMERA MOVEMENT (arrow keys with momentum)
 // Arrow keys build up cameraAcceleration; the values decay
@@ -1513,27 +1548,27 @@ window.addEventListener("keydown", function (event) {
 // ============================================================
 function freeCameraMovement() {
   var DT = cameraClock.getDelta(); // Time since last frame
- 
+
   // Build acceleration from held arrow keys
   if (keys.ArrowUp)    { cameraAccelerationX += 1.05 * DT; }
   if (keys.ArrowDown)  { cameraAccelerationX -= 1.05 * DT; }
   if (keys.ArrowLeft)  { cameraAccelerationY += 1.05 * DT; }
   if (keys.ArrowRight) { cameraAccelerationY -= 1.05 * DT; }
- 
+
   // Apply accumulated acceleration to the main camera's rotation
   camera.rotation.x += cameraAccelerationX * DT;
   camera.rotation.y += cameraAccelerationY * DT;
- 
+
   // Snap very small accelerations to zero to prevent endless micro-drift
   if (cameraAccelerationX > -0.01 && cameraAccelerationX < 0.01) { cameraAccelerationX = 0; }
   if (cameraAccelerationY > -0.01 && cameraAccelerationY < 0.01) { cameraAccelerationY = 0; }
- 
+
   // Exponential decay: reduce acceleration by 1.5× its current value each frame
   cameraAccelerationX -= 1.5 * cameraAccelerationX * DT;
   cameraAccelerationY -= 1.5 * cameraAccelerationY * DT;
 }
- 
- 
+
+
 // ============================================================
 // PAN CAMERA — SETUP
 // Called to begin a smooth rotation animation from the current
@@ -1558,8 +1593,8 @@ function computePanCamera(iniFi, iniTh, finFi, finTh) {
   panComputeBool = true;
   panclock.start();
 }
- 
- 
+
+
 // ============================================================
 // ZOOM CAMERA — SETUP
 // Called to begin a smooth FOV animation step.
@@ -1578,8 +1613,8 @@ function computeZoomCamera(amount) {
   zoomComputeBool = true;
   zoomclock.start();
 }
- 
- 
+
+
 // ============================================================
 // PAN CAMERA — PER-FRAME INTERPOLATION
 // Linearly interpolates camera rotation over `panTime` seconds.
@@ -1589,7 +1624,7 @@ function computeZoomCamera(amount) {
 function panCamera() {
   const panTime = 1; // Total duration of the pan animation in seconds
   var panDT = panclock.getElapsedTime();
- 
+
   // Proportional FOV nudge: larger pans produce a more pronounced temporary zoom-out
   var fac = 1.5 * (Math.abs(dPanX) + Math.abs(dPanY));
   if (fac > 0.01) {
@@ -1597,7 +1632,7 @@ function panCamera() {
     camera.fov = panCamFov;
     camera.updateProjectionMatrix();
   }
- 
+
   // When the animation completes, restore FOV and stop the clock
   if (panDT >= panTime) {
     panComputeBool = false;
@@ -1608,7 +1643,7 @@ function panCamera() {
     panclock.stop();
     panCamBool = false;
   }
- 
+
   // Linear interpolation of camera rotation toward the target
   camera.rotation.set(
     panX + (panDT / panTime) * dPanX,
@@ -1616,8 +1651,8 @@ function panCamera() {
     0
   );
 }
- 
- 
+
+
 // ============================================================
 // ZOOM CAMERA — PER-FRAME INTERPOLATION
 // Linearly interpolates the camera FOV over `zoomTime` seconds.
@@ -1625,12 +1660,12 @@ function panCamera() {
 function zoomCamera() {
   const zoomTime = 0.05; // Duration of the zoom animation in seconds (very fast)
   var zoomDT = zoomclock.getElapsedTime();
- 
+
   // Linear interpolation of FOV
   zoomCamFov = initialZoom + (zoomDelta / zoomTime) * zoomDT;
   camera.fov = zoomCamFov;
   camera.updateProjectionMatrix();
- 
+
   // When complete, snap to the exact final value and stop the clock
   if (zoomDT >= zoomTime) {
     zoomComputeBool = false;
@@ -1642,8 +1677,8 @@ function zoomCamera() {
     zoomCamBool = false;
   }
 }
- 
- 
+
+
 // ============================================================
 // HOVER ANIMATION — STUB
 // Placeholder for future node hover animations (e.g. pulsing
@@ -1654,8 +1689,8 @@ function hoverAnimation() {
   const animSize = 0;  // Intended animation scale target (unused)
   animclock.getDelta(); // Consuming the delta prevents time from accumulating if this is later used
 }
- 
- 
+
+
 // ============================================================
 // WINDOW RESIZE HANDLER
 // Updates camera aspect ratio and renderer dimensions when the
@@ -1668,8 +1703,8 @@ function onWindowResize() {
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
 }
- 
- 
+
+
 // ============================================================
 // FREE CAMERA — MOUSE DRAG ROTATION
 // While the left mouse button is held, mouse movement rotates
@@ -1677,28 +1712,28 @@ function onWindowResize() {
 // ============================================================
 let isMouseDown = false;
 let lastMousePosition = { x: 0, y: 0 };
- 
+
 window.addEventListener('mousedown', (e) => { isMouseDown = true; });
 window.addEventListener('mouseup',   (e) => { isMouseDown = false; });
 window.addEventListener('mousemove', (e) => {
   if (isMouseDown) {
     let deltaX = e.clientX - lastMousePosition.x;
     let deltaY = e.clientY - lastMousePosition.y;
- 
+
     freeCamera.rotation.y -= deltaX * 0.005; // Horizontal drag → yaw
     freeCamera.rotation.x -= deltaY * 0.005; // Vertical drag → pitch
- 
+
     // Clamp pitch to prevent the camera from flipping upside-down
     freeCamera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, freeCamera.rotation.x));
   }
   lastMousePosition = { x: e.clientX, y: e.clientY };
 });
- 
+
 // Also track WASD and special keys for free-camera movement in the animate() loop
 window.addEventListener('keydown', (e) => { keys[e.key] = true; });
 window.addEventListener('keyup',   (e) => { keys[e.key] = false; });
- 
- 
+
+
 // ============================================================
 // MAIN ANIMATION LOOP
 // Runs every frame via requestAnimationFrame.
@@ -1712,27 +1747,27 @@ window.addEventListener('keyup',   (e) => { keys[e.key] = false; });
 function animate() {
   stats.begin(); // Start FPS measurement for this frame
   var delta = clock.getDelta(); // Time in seconds since the last frame
- 
+
   // Run camera animations if they're active
   if (panComputeBool == true) { panCamera(); }
- 
+
   // If a zoom-out was queued (couldn't start because another animation was running), fire it now
   if (queuedZoomOut == true && zoomComputeBool == false && panCamBool == false) {
     queuedZoomOut = false;
     computeZoomCamera(-zoomDelta);
   }
   if (zoomComputeBool == true) { zoomCamera(); }
- 
+
   // Apply arrow-key momentum to the main camera
   freeCameraMovement();
- 
+
   // Advance the time uniform for every star that has finished loading its textures
   for (let i = 0; i < starClasses.length; i++) {
     if (starClasses[i].isModelReady()) {
       starClasses[i].customUniforms.time.value += delta;
     }
   }
- 
+
   // Free camera WASD translation (fixed speed, no momentum)
   const speed = 0.05;
   if (keys['w'])     { freeCamera.position.z -= speed; }
@@ -1741,13 +1776,13 @@ function animate() {
   if (keys['d'])     { freeCamera.position.x += speed; }
   if (keys[' '])     { freeCamera.position.y += speed; } // Space → up
   if (keys['Shift']) { freeCamera.position.y -= speed; } // Shift → down
- 
+
   requestAnimationFrame(animate); // Schedule next frame
   composer.render();              // Render scene through the bloom post-processing pipeline
   stats.end();                    // End FPS measurement for this frame
 }
 animate(); // Kick off the loop
- 
+
 // ============================================================
 // REFERENCES
 // Lava / fireball shader technique:
