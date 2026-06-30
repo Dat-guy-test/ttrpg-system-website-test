@@ -1,1 +1,0 @@
-export const BLOOM_LAYER = 2;
