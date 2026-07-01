@@ -1,0 +1,278 @@
+{
+  "//": "fi/theta are in DEGREES, within the tree's angular span (see `new Tree(...)` in main.js). requires: a string entry is an AND (that id must be active); an array entry is an OR group (at least one member must be active). exclGroup references a `label` in mutuallyExclusive below, or null.",
+
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Adventurer",
+      "desc": "You decide to begin your adventure. You need to choose at least one origin and lifestyle perk before continuing.",
+      "hoverText": "Begin your adventure!",
+      "fi": 20,
+      "theta": 31.43,
+      "requires": ["-1", "-2"],
+      "cost": 0,
+      "temperature": 12000,
+      "exclGroup": null
+    },
+    {
+      "id": "-3",
+      "name": "Innate caster",
+      "desc": "You always had some profficiency in manipulating the world around you via magic.",
+      "hoverText": "Grants access to Witchery tree and basic magic.",
+      "fi": 20,
+      "theta": 20,
+      "requires": [],
+      "cost": 5,
+      "temperature": 13000,
+      "exclGroup": null
+    },
+    {
+      "id": "-1",
+      "name": "Complete Origin",
+      "desc": "Choose this node to complete your origin. You can choose up to two origins.",
+      "hoverText": "Complete origin creation.",
+      "fi": 22,
+      "theta": 25.71,
+      "requires": [["-1001", "-1002", "-1003", "-1004", "-1005"]],
+      "cost": 0,
+      "temperature": 7000,
+      "exclGroup": null
+    },
+    {
+      "id": "-2",
+      "name": "Complete Lifestyle Choices",
+      "desc": "Choose this node to confirm your lifestyle choices. You can pick as many lifestyles as you want as long as you don't run out of perk points.",
+      "hoverText": "Complete lifestyle creation.",
+      "fi": 18,
+      "theta": 25.71,
+      "requires": [["-2001", "-2002", "-2003", "-2004"]],
+      "cost": 0,
+      "temperature": 7000,
+      "exclGroup": null
+    },
+    {
+      "id": "-1001",
+      "name": "Human",
+      "desc": "You were born with human anatomy and traits. <D><D> Origin trait - Children of the Gods: <D> Humans gain one resolve point each sunrise. <D><D>Origin ability - Divine patronage:<D> You may expend one resolve point to reroll any one dice one time. You always keep the rerolled value. You may use this ability multiple times on the same roll provided you have enough resolve points.",
+      "hoverText": "Grants Human traits.",
+      "fi": 24,
+      "theta": 20,
+      "requires": [],
+      "cost": 2,
+      "temperature": 4000,
+      "exclGroup": "origins"
+    },
+    {
+      "id": "-1002",
+      "name": "Dwarf",
+      "desc": "You were born with dwarven anatomy and traits. <D><D> Origin Trait - Dwarven resilience: <D> You recieve half (rounded down) heat and toxin damage. <D><D> Origin ability - Spark of Genius: <D> You may use a resolve point to double an ability score for the purpouse of evaluating a check.",
+      "hoverText": "Grants Dwarven traits.",
+      "fi": 26,
+      "theta": 20,
+      "requires": [],
+      "cost": 3,
+      "temperature": 5000,
+      "exclGroup": "origins"
+    },
+    {
+      "id": "-1003",
+      "name": "Elf",
+      "desc": "You were born with mostly elvish anatomy and traits. <D><D> Origin trait - Elvish Grace: <D> If you are about to be ensnared, knocked down you aren't, unless this trait prevented one of this states from occuring in this round already or you already are affected by one of the abformentioned effects/states. <D><D> Origin ability - Mystical rejuvenation: <D> You can use two resolve points to regain 5d10% of your total mana or hp.",
+      "hoverText": "Grants Elvish traits.",
+      "fi": 28,
+      "theta": 20,
+      "requires": [],
+      "cost": 3,
+      "temperature": 5000,
+      "exclGroup": "origins"
+    },
+    {
+      "id": "-1004",
+      "name": "Fae",
+      "desc": "You were born with mostly faeish anatomy and traits. <D><D> Origin Trait - True Form: <D> Your appearance and dimensions are of a Human/Dwarf/Elf (your choice when you create the character. If you choose a second origin this must match the origin). You may transform into your true form at will. While in your true form you gain wings (you choose their appearance: they may be bug-like, bird-like or etheral-looking, and are solid physical objects) and can fly at your speed. You also emit 10 levels of light. However in this state damage from all magic dealt to you is doubled (this is common knowledge across time!).<D><D>Origin abilities -Divine strikes: <D> You can use a resolve point to convert some of your magical attacks damage to energy damage for the next 2d10 rounds: That is you choose which dice will roll for energy damage instead of their usual damage types (you choose before the rolls happen).",
+      "hoverText": "Grants Faeish traits.",
+      "fi": 30,
+      "theta": 20,
+      "requires": [],
+      "cost": 5,
+      "temperature": 7000,
+      "exclGroup": "origins"
+    },
+    {
+      "id": "-1005",
+      "name": "Daemon",
+      "desc": "You were born with mostly daemonish anatomy and traits. <D><D> Origin trait - Demonic vision: <D> Your demonic blood gives you the ability to sense the location of all humanoid creatures located within 10 units (this works through all obstacles). You can also see in complete darkness as normal without percieving colors in that range.<D><D> Origin ability - Manifest Chaos: <D> You may use a resolve point to manifest terrible chaotic energies. Roll on the Manifest Chaos table.",
+      "hoverText": "Grants Daemonish traits.",
+      "fi": 32,
+      "theta": 20,
+      "requires": [],
+      "cost": 5,
+      "temperature": 8000,
+      "exclGroup": "origins"
+    },
+    {
+      "id": "-2001",
+      "name": "Beggar",
+      "desc": "You were a beggar.",
+      "hoverText": "Grants beggar's starting equipement and skills.",
+      "fi": 16,
+      "theta": 20,
+      "requires": [],
+      "cost": 1,
+      "temperature": 2500,
+      "exclGroup": null
+    },
+    {
+      "id": "-2002",
+      "name": "Peasant",
+      "desc": "You were a lowborn peasant.",
+      "hoverText": "Grants peasant's starting equipement and skills.",
+      "fi": 14,
+      "theta": 20,
+      "requires": [],
+      "cost": 2,
+      "temperature": 2700,
+      "exclGroup": null
+    },
+    {
+      "id": "-2003",
+      "name": "Sword for Hire",
+      "desc": "You were a sword for hire.",
+      "hoverText": "Grants Warrior's starting equipement and skills.",
+      "fi": 12,
+      "theta": 20,
+      "requires": [],
+      "cost": 2,
+      "temperature": 3000,
+      "exclGroup": null
+    },
+    {
+      "id": "-2004",
+      "name": "Mercenary",
+      "desc": "You were a mercenary.",
+      "hoverText": "Grants Mercenary's starting equipement and skills.",
+      "fi": 10,
+      "theta": 20,
+      "requires": ["-2003"],
+      "cost": 1,
+      "temperature": 4000,
+      "exclGroup": null
+    },
+    {
+      "id": "2",
+      "name": "Secrets of the World",
+      "desc": "You begin to uncover the mysteries of the universe.",
+      "hoverText": "Grants intellect related skills.",
+      "fi": 0,
+      "theta": 37.14,
+      "requires": ["1"],
+      "cost": 1,
+      "temperature": 5000,
+      "exclGroup": null
+    },
+    {
+      "id": "3",
+      "name": "Student of the Arcane",
+      "desc": "You begin to study magic arts.",
+      "hoverText": "Grants access to basic magic.",
+      "fi": 10,
+      "theta": 42.86,
+      "requires": ["2"],
+      "cost": 1,
+      "temperature": 6000,
+      "exclGroup": null
+    },
+    {
+      "id": "4",
+      "name": "Explorer",
+      "desc": "Begin to explore the world.",
+      "hoverText": "Grants access to the exploration tree.",
+      "fi": 20,
+      "theta": 37.14,
+      "requires": ["1"],
+      "cost": 1,
+      "temperature": 5000,
+      "exclGroup": null
+    },
+    {
+      "id": "5",
+      "name": "Diplomat",
+      "desc": "Be more persuasive.",
+      "hoverText": "Grants access to the exploration tree.",
+      "fi": 30,
+      "theta": 37.14,
+      "requires": ["1"],
+      "cost": 1,
+      "temperature": 5000,
+      "exclGroup": null
+    },
+    {
+      "id": "6",
+      "name": "Warrior",
+      "desc": "You begin to hone in on your skills with weapons",
+      "hoverText": "Grants bonus to weapons.",
+      "fi": 40,
+      "theta": 37.14,
+      "requires": ["1"],
+      "cost": 1,
+      "temperature": 5000,
+      "exclGroup": null
+    },
+    {
+      "id": "7",
+      "name": "Resourceful",
+      "desc": "You got a little better at making the most out of what you have in any given situation. <D><D> Your ingenuity increases by 1.",
+      "hoverText": "+1 to ingenuity.",
+      "fi": 8,
+      "theta": 42.86,
+      "requires": ["2"],
+      "cost": 2,
+      "temperature": 6000,
+      "exclGroup": null
+    },
+    {
+      "id": "8",
+      "name": "Creative",
+      "desc": "You became a bit more creative. <D><D> Your ingenuity increases by 1. <D> Damage you deal with improvised weapons increases by 1d4 of a type that this weapon already deals (you can choose a different one each attack).",
+      "hoverText": "+1 to ingenuity. Your improvised weapon attacks deal more damage.",
+      "fi": 8,
+      "theta": 48.57,
+      "requires": ["7"],
+      "cost": 2,
+      "temperature": 4000,
+      "exclGroup": null
+    },
+    {
+      "id": "9",
+      "name": "Improvised weapon adept",
+      "desc": "You focus your martial training at what you have at hand. <D> You gain an additional bonus to hit rolls made with improvised weapons equal to your ingenuity stat. <D> You also gain +1 ingenuity.",
+      "hoverText": "+1 to ingenuity. Your improvised weapon attacks become more accurate.",
+      "fi": 6,
+      "theta": 54.29,
+      "requires": ["8"],
+      "cost": 1,
+      "temperature": 4000,
+      "exclGroup": null
+    },
+    {
+      "id": "10",
+      "name": "Improvised weapon master",
+      "desc": "You master the art of using all sorts of mundane objects to fight. <D> Damage you deal with improvised weapons increases by an additional 1d6 of a type that this weapon already deals (you can choose a different one each attack). <D> You also gain +1 ingenuity.",
+      "hoverText": "+1 to ingenuity. Your improvised weapon attacks deal even more damage.",
+      "fi": 6,
+      "theta": 60,
+      "requires": ["9"],
+      "cost": 1,
+      "temperature": 4000,
+      "exclGroup": null
+    }
+  ],
+
+  "mutuallyExclusive": [
+    {
+      "label": "origins",
+      "max": 2,
+      "members": ["-1001", "-1002", "-1003", "-1004", "-1005"]
+    }
+  ]
+}

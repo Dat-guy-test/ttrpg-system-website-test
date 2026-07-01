@@ -66,6 +66,18 @@ const AppState = {
     perkPoints:  20,
     starClasses: [],    // StarModel instances, one per TreeNode; updated by animate()
 
+    // ---- Edit mode (skill-tree editor) -------------------------------
+    // editMode:    toggled by the 'E' key (see inputHandlers.js); when true,
+    //              clicking a node opens the read-only inspector instead of
+    //              running perk activation/deactivation.
+    // editSubMode: reserved for later editor steps (e.g. 'addNode', 'connect',
+    //              'deleteNode'); currently unused — everything is 'select'.
+    // selectedNode: the TreeNode currently shown in the inspector panel, or
+    //              null when nothing is selected.
+    editMode:     false,
+    editSubMode:  'select',
+    selectedNode: null,
+
     // ---- Raycasting / hover ----------------------------------------
     intersects: [],
     hovered:    {},
@@ -106,4 +118,3 @@ const AppState = {
 };
 
 export default AppState;
-

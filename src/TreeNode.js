@@ -9,12 +9,20 @@
 //   • A StarModel            — async lava-shader, applied on activation
 //
 // Formerly-global variables (scene, camera, tr, panCamBool, …) are
-// all accessed through AppState.  computePanCamera() is imported
+// all accessed through AppState. computePanCamera() is imported
 // from cameraControls.js.
 //
 // Note: addToBloom is inlined here (two lines) to avoid a circular
 // import with sceneSetup.js — TreeNode is imported by Tree.js which
 // is imported by main.js which imports sceneSetup.js.
+//
+// `requires` format (post-JSON-migration): an array whose entries
+// are each either a plain id string (AND) or an array of id strings
+// (OR group) — see the header comment in Tree.js for details.
+//
+// `exclStuff` (stored as `this.excl`) is either null or a shared
+// group object { label, max, members }, built once in Tree's
+// treeGen() and referenced by every member node.
 // ============================================================
 
 import * as THREE from 'three';
@@ -23,6 +31,7 @@ import AppState from './appState.js';
 import { BLOOM_LAYER } from './constants.js';
 import { StarModel } from './StarModel.js';
 import { computePanCamera } from './cameraControls.js';
+import { handleEditModeNodeClick } from './editMode.js';
 
 
 export class TreeNode extends THREE.Mesh {
@@ -34,9 +43,9 @@ export class TreeNode extends THREE.Mesh {
      * @param {number}        posX, posY, posZ  — world position on the skill sphere
      * @param {number}        afi               — fi (longitude) in radians
      * @param {number}        atheta            — theta (latitude) in radians
-     * @param {string[]}      requires          — prerequisite node IDs; "-" means none
+     * @param {(string|string[])[]} requires    — prerequisite entries; [] means none
      * @param {number}        anodeCost
-     * @param {array}         exclStuff         — mutual-exclusion group (may be undefined)
+     * @param {{label:string,max:number,members:string[]}|null} exclStuff — shared mutual-exclusion group, or null
      * @param {number}        temperature       — blackbody colour temp in Kelvin
      */
     constructor(anodeId, anodeName, anodeDesc, ahoverText,
@@ -54,7 +63,7 @@ export class TreeNode extends THREE.Mesh {
         ? 0.05
         : 0.05 * ((anodeCost) ^ (1 / 3)); // ^ is bitwise XOR — original behaviour preserved
 
-        this.excl  = exclStuff;
+        this.excl  = exclStuff || null;
         this.fi    = -afi;    // negated: positive fi in data → expected visual direction
         this.theta = atheta;
 
@@ -114,7 +123,7 @@ export class TreeNode extends THREE.Mesh {
         this.hovertext  = ahoverText;
         this.nodeId     = anodeId;
 
-        this.requires = (requires[0] === '-') ? [] : requires;
+        this.requires = requires || [];
 
         // ---- Visible star mesh (starts invisible) --------------------
         // Assigned to the bloom layer so it glows when the lava shader is active.
@@ -177,6 +186,16 @@ export class TreeNode extends THREE.Mesh {
                 // ----------------------------------------------------------------
 
                 onClick(e) {
+                    // ---- Edit mode -------------------------------------------------
+                    // While the editor is on, clicking a node selects it for the
+                    // read-only inspector instead of running perk activation. This
+                    // is the only edit-mode branch point right now — writing to
+                    // fields, adding nodes, and connecting nodes are later steps.
+                    if (AppState.editMode) {
+                        handleEditModeNodeClick(this);
+                        return;
+                    }
+
                     const tr = AppState.tr;
 
                     // ---- isNextActive --------------------------------------------
@@ -186,8 +205,8 @@ export class TreeNode extends THREE.Mesh {
                         for (let i = 0; i < tr.nodes.length; i++) {
                             for (let j = 0; j < tr.nodes[i].requires.length; j++) {
                                 const req = tr.nodes[i].requires[j];
-                                if (req.includes('o') && tr.nodes[i].requires[0] !== 'o1') {
-                                    const group = req.split('o');
+                                if (Array.isArray(req)) {
+                                    const group = req;
                                     let inactiveCount = 0;
                                     let isInGroup     = false;
                                     for (const memberId of group) {
@@ -212,13 +231,13 @@ export class TreeNode extends THREE.Mesh {
                     // Returns false if activating `passedIdNum` would exceed the
                     // simultaneous-active limit for its mutual-exclusion group.
                     function isMutExclCritMet(passedIdNum) {
-                        const arr = tr.nodes[tr.nodeIDs[passedIdNum]].excl;
-                        if (!arr || arr === 0) return true;
+                        const group = tr.nodes[tr.nodeIDs[passedIdNum]].excl;
+                        if (!group) return true;
                         let count = 0;
-                        for (let i = 2; i < arr.length; i++) {
-                            if (tr.nodes[tr.nodeIDs[arr[i]]].nodeActive) count++;
+                        for (const memberId of group.members) {
+                            if (tr.nodes[tr.nodeIDs[memberId]].nodeActive) count++;
                         }
-                        return count < arr[0];
+                        return count < group.max;
                     }
 
                     if (this.nodeActive && !isNextActive(this.nodeId)) {

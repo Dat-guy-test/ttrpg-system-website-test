@@ -18,9 +18,10 @@
 //   StarModel      ← THREE, colorScience
 //   cameraControls ← appState
 //   sceneSetup     ← appState, constants, THREE, postprocessing
-//   TreeNode       ← appState, constants, THREE, StarModel, cameraControls
+//   TreeNode       ← appState, constants, THREE, StarModel, cameraControls, editMode
 //   Tree           ← appState, THREE, TreeNode, cameraControls
-//   inputHandlers  ← appState, cameraControls
+//   inputHandlers  ← appState, cameraControls, editMode
+//   editMode       ← appState
 //   main           ← all of the above
 // ============================================================
 
@@ -35,6 +36,7 @@ import {
   computeZoomCamera,
 } from './cameraControls.js';
 import { registerInputHandlers } from './inputHandlers.js';
+import { initEditMode } from './editMode.js';
 
 
 // ============================================================
@@ -50,10 +52,13 @@ initScene();
 // 2. Create the skill tree container (adds the debug sphere to the scene)
 AppState.tr = new Tree(0, 40, 20, 60);
 
-// 3. Attach all DOM event listeners
+// 3. Build the (hidden) edit-mode inspector panel
+initEditMode();
+
+// 4. Attach all DOM event listeners
 registerInputHandlers();
 
-// 4. Fetch node data from GitHub, instantiate TreeNodes, draw arcs,
+// 5. Fetch node data, instantiate TreeNodes, draw arcs,
 //    then orient the camera toward the root node (ID 1).
 async function sec() {
   await treeGen(AppState.tr);

@@ -11,7 +11,7 @@
 // Listeners registered here:
 //   pointermove — raycasting for hover (onPointerOver / onPointerOut)
 //   click       — node activation (onClick)
-//   keydown     — arrow keys (AppState.keys) + special keys (=, -, Tab, 1, 2, Esc)
+//   keydown     — arrow keys (AppState.keys) + special keys (=, -, Tab, 1, 2, E, Esc)
 //   keyup       — clears AppState.keys
 //   wheel       — zoom in/out
 //   mousedown   — begin free-camera drag
@@ -22,6 +22,7 @@
 
 import AppState from './appState.js';
 import { computeZoomCamera, computePanCamera } from './cameraControls.js';
+import { toggleEditMode } from './editMode.js';
 
 
 export function registerInputHandlers() {
@@ -140,6 +141,12 @@ export function registerInputHandlers() {
         AppState.bloomEffect.camera = AppState.activeCamera;
         AppState.effectPass.camera  = AppState.activeCamera;
         console.log('Activating free camera…');
+        break;
+
+      case 'e':
+      case 'E':
+        // Toggle the skill-tree editor (edit mode + inspector panel)
+        toggleEditMode();
         break;
 
       default:
