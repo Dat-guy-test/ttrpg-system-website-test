@@ -94,7 +94,7 @@ export class TreeNode extends THREE.Mesh {
                                    this.position.y - this.centerOffset,
                                    this.position.z + (this.nodeSize + 0.01) * Math.cos(this.fi)
         );
-        this.nameText.rotation.set(0, -Math.PI / 2 + this.fi, 0);
+        this.nameText.rotation.set(this.theta, -Math.PI / 2 + this.fi, 0);
         AppState.scene.add(this.nameText);
 
         // ---- StarModel (async texture load + lava shader) ------------
