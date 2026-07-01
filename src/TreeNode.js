@@ -98,7 +98,7 @@ export class TreeNode extends THREE.Mesh {
         // lookAt() points local -Z at the target, so we aim at a point further
         // out along the same radial line — that puts local +Z (the readable
         // front face) back toward the origin, matching the original intent.
-        const outward = this.position.clone().multiplyScalar(2);
+        const outward = this.position.clone().multiplyScalar(0.5);
         this.nameText.lookAt(outward);
         AppState.scene.add(this.nameText);
 
