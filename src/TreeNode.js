@@ -94,7 +94,12 @@ export class TreeNode extends THREE.Mesh {
                                    this.position.y - this.centerOffset,
                                    this.position.z + (this.nodeSize + 0.01) * Math.cos(this.fi)
         );
-        this.nameText.rotation.set(this.theta, -Math.PI / 2 + this.fi, 0);
+        // Face the label toward the origin (where the camera sits) at any latitude.
+        // lookAt() points local -Z at the target, so we aim at a point further
+        // out along the same radial line — that puts local +Z (the readable
+        // front face) back toward the origin, matching the original intent.
+        const outward = this.position.clone().multiplyScalar(2);
+        this.nameText.lookAt(outward);
         AppState.scene.add(this.nameText);
 
         // ---- StarModel (async texture load + lava shader) ------------
