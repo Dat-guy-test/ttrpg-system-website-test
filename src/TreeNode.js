@@ -212,8 +212,9 @@ export class TreeNode extends THREE.Mesh {
                                     for (const memberId of group) {
                                         if (memberId == id && tr.nodes[i].nodeActive && !(id == 1 && tr.nodes[i].nodeId < 0)) {
                                             isInGroup = true;
-                                        } else if (!tr.nodes[tr.nodeIDs[memberId]].nodeActive) {
-                                            inactiveCount++;
+                                        } else {
+                                            const member = tr.resolveNode(memberId);
+                                            if (!member || !member.nodeActive) inactiveCount++;
                                         }
                                     }
                                     if (inactiveCount === group.length - 1 && isInGroup) return true;
@@ -231,11 +232,13 @@ export class TreeNode extends THREE.Mesh {
                     // Returns false if activating `passedIdNum` would exceed the
                     // simultaneous-active limit for its mutual-exclusion group.
                     function isMutExclCritMet(passedIdNum) {
-                        const group = tr.nodes[tr.nodeIDs[passedIdNum]].excl;
-                        if (!group) return true;
+                        const selfNode = tr.resolveNode(passedIdNum);
+                        const group = selfNode ? selfNode.excl : null;
+                        if (!group || !Array.isArray(group.members)) return true;
                         let count = 0;
                         for (const memberId of group.members) {
-                            if (tr.nodes[tr.nodeIDs[memberId]].nodeActive) count++;
+                            const member = tr.resolveNode(memberId);
+                            if (member && member.nodeActive) count++;
                         }
                         return count < group.max;
                     }

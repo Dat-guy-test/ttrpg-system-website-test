@@ -121,7 +121,8 @@ function formatRequires(requires) {
 /** Renders a node's shared mutual-exclusion group object, if any. */
 function formatExclGroup(group) {
     if (!group) return 'None';
-    return `"${group.label}" (max ${group.max} active, members: ${group.members.join(', ')})`;
+    const members = Array.isArray(group.members) ? group.members.join(', ') : '(invalid members list — check nodes.json)';
+    return `"${group.label}" (max ${group.max} active, members: ${members})`;
 }
 
 /** Mirrors the <D>-as-linebreak convention used by the hover panel in TreeNode.js. */

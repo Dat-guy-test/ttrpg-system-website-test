@@ -3,7 +3,7 @@
 //
 // Exports:
 //   Tree class    — holds nodes, draws arcs, provides lookups
-//   treeGen(tree) — async: fetches data from GitHub, populates tree
+//   treeGen(tree) — async: loads data (now local JSON), populates tree
 //
 // areReqsMet() is a method on Tree (not a standalone export).
 // TreeNode calls it via AppState.tr.areReqsMet(…).
@@ -11,12 +11,30 @@
 //   Tree → TreeNode → Tree
 // circular import that would occur if areReqsMet were exported
 // from this file and imported by TreeNode.
+//
+// ------------------------------------------------------------
+// DATA FORMAT (as of the JSON migration)
+// ------------------------------------------------------------
+// Requirements are now real arrays instead of delimiter-encoded
+// strings:
+//   "5"                          — AND: node 5 must be active
+//   ["-1001", "-1002", "-1003"]  — OR: at least one member must be active
+// A node's `requires` field is an array whose entries are each
+// either a plain id string (AND) or an array of id strings (OR
+// group). This replaces the old "-1001o-1002o-1003" string format,
+// which broke down as soon as an id or delimiter collided.
+//
+// Mutual-exclusion groups are shared objects: { label, max, members }.
+// Every member TreeNode's `.excl` points at the SAME object, so all
+// members of a group are always looking at one shared max/members —
+// convenient once edit-mode code starts mutating groups live.
 // ============================================================
 
 import * as THREE from 'three';
 import AppState from './appState.js';
 import { TreeNode } from './TreeNode.js';
 import { computePanCamera } from './cameraControls.js';
+import { NODE_DATA_URL } from './constants.js';
 
 
 export class Tree {
@@ -27,10 +45,10 @@ export class Tree {
      * @param {number} highTh  — max theta (latitude) in degrees
      */
     constructor(smolFi, highFi, smolTh, highTh) {
-        this.nodes   = [];   // TreeNode[]
-        this.mutExcl = [];   // raw mutuallyExclusive lines
-        this.nodeIDs = [];   // sparse map: nodeId → index in this.nodes
-        this.span    = [smolFi, highFi, smolTh, highTh];
+        this.nodes         = [];   // TreeNode[]
+        this.mutExclGroups = [];   // [{ label, max, members }, …] — filled in by treeGen()
+        this.nodeIDs       = [];   // sparse map: nodeId → index in this.nodes
+        this.span          = [smolFi, highFi, smolTh, highTh];
 
         this.sphereRadius = 30;
 
@@ -43,6 +61,34 @@ export class Tree {
     }
 
     // ----------------------------------------------------------------
+    // resolveNode  (defensive lookup)
+    // ----------------------------------------------------------------
+
+    /**
+     * Safely resolves a node by id. Returns undefined — and logs a
+     * one-time console error naming the bad id — if no node matches,
+     * instead of letting callers crash on `undefined.star` /
+     * `undefined.nodeActive`. This is what keeps a single typo in a
+     * hand-edited requires/exclGroup entry from taking down arc
+     * drawing, camera setup, and every other node's activation with it.
+     *
+     * @param {string|number} id
+     * @returns {TreeNode|undefined}
+     */
+    resolveNode(id) {
+        const node = this.nodes[this.nodeIDs[id]];
+        if (!node) {
+            if (!this._warnedMissingIds) this._warnedMissingIds = new Set();
+            if (!this._warnedMissingIds.has(id)) {
+                this._warnedMissingIds.add(id);
+                console.error(`Tree: no node found with id "${id}" — check nodes.json for a typo or a dangling reference.`);
+            }
+            return undefined;
+        }
+        return node;
+    }
+
+    // ----------------------------------------------------------------
     // areReqsMet  (instance method — avoids a circular import)
     // ----------------------------------------------------------------
 
@@ -50,21 +96,27 @@ export class Tree {
      * Returns true if every requirement in `reqs` is satisfied.
      *
      * Formats:
-     *   "nodeId"       — AND: that node must be active
-     *   "idAoidB"      — OR: at least one of idA, idB must be active
+     *   "nodeId"        — AND: that node must be active
+     *   ["idA","idB"]   — OR: at least one of idA, idB must be active
      *
-     * @param {string[]} reqs
+     * An id that doesn't resolve to a real node (bad data) is treated
+     * as inactive/unsatisfied rather than throwing.
+     *
+     * @param {(string|string[])[]} reqs
      * @returns {boolean}
      */
     areReqsMet(reqs) {
         for (const req of reqs) {
-            if (req.includes('o')) {
-                // OR group — split on 'o'; ALL inactive → fail
-                const group = req.split('o');
-                const allInactive = group.every(id => !this.nodes[this.nodeIDs[id]].nodeActive);
+            if (Array.isArray(req)) {
+                // OR group — ALL inactive (or unresolved) → fail
+                const allInactive = req.every(id => {
+                    const node = this.resolveNode(id);
+                    return !node || !node.nodeActive;
+                });
                 if (allInactive) return false;
             } else {
-                if (!this.nodes[this.nodeIDs[req]].nodeActive) return false;
+                const node = this.resolveNode(req);
+                if (!node || !node.nodeActive) return false;
             }
         }
         return true;
@@ -203,6 +255,9 @@ export class Tree {
     /**
      * 1) Builds the nodeIDs sparse map (nodeId → array index).
      * 2) Draws great-circle arcs between every node and its requirements.
+     *    A requirement id that doesn't resolve to a real node (typo,
+     *    dangling reference) is logged via resolveNode() and that ONE
+     *    arc is skipped — the rest of the tree still draws normally.
      */
     init() {
         for (let i = 0; i < this.nodes.length; i++) {
@@ -215,20 +270,26 @@ export class Tree {
                 const endD = new THREE.Vector3();
                 this.nodes[i].star.getWorldPosition(endD);
 
-                if (req.includes('o')) {
+                if (Array.isArray(req)) {
                     // OR group — one dashed arc per member
-                    const group = req.split('o');
+                    const group = req;
                     for (let k = 0; k < group.length; k++) {
+                        const startNode = this.resolveNode(group[k]);
+                        if (!startNode) continue; // bad id in this OR group — skip just this arc
+
                         const startT = new THREE.Vector3();
                         const endD2  = new THREE.Vector3();
                         this.nodes[i].star.getWorldPosition(endD2);
-                        this.nodes[this.nodeIDs[group[k]]].star.getWorldPosition(startT);
+                        startNode.star.getWorldPosition(startT);
                         this.createLinesNTubes(startT, endD2, 50, false, true, i, j, k, group);
                     }
                 } else {
                     // AND — single solid arc
+                    const startNode = this.resolveNode(req);
+                    if (!startNode) continue; // bad id — skip just this arc
+
                     const startT = new THREE.Vector3();
-                    this.nodes[this.nodeIDs[req]].star.getWorldPosition(startT);
+                    startNode.star.getWorldPosition(startT);
                     this.createLinesNTubes(startT, endD, 50, false, false, i, j, -1, null);
                 }
             }
@@ -244,7 +305,8 @@ export class Tree {
      * @returns {THREE.Vector2}  x = fi, y = theta
      */
     getNodeSphericalCoordinates(ID) {
-        const node = this.nodes[this.nodeIDs[ID]];
+        const node = this.resolveNode(ID);
+        if (!node) return new THREE.Vector2(0, 0);
         return new THREE.Vector2(node.getFi(), node.getTheta());
     }
 
@@ -254,7 +316,8 @@ export class Tree {
      */
     getNodeWorldPosition(ID) {
         const v = new THREE.Vector3();
-        this.nodes[this.nodeIDs[ID]].getWorldPosition(v);
+        const node = this.resolveNode(ID);
+        if (node) node.getWorldPosition(v);
         return v;
     }
      }
@@ -262,77 +325,66 @@ export class Tree {
 
      // ============================================================
      // treeGen
-     // Fetches node data and mutually-exclusive group definitions
-     // from GitHub, then fills `tree` with TreeNode instances.
+     // Loads node data + mutually-exclusive group definitions from a
+     // local JSON file (see constants.js → NODE_DATA_URL), then fills
+     // `tree` with TreeNode instances.
      //
-     // Node data format (pipe-delimited, one per line):
-     //   nodeId | name | desc | hoverText | fi | theta | requires | cost | (unused) | temperature
-     //
-     // fi / theta are raw grid coords mapped linearly onto the
-     // angular span defined by tree.span.
+     // fi / theta in the JSON are already in degrees within the
+     // tree's angular span — no more cross-dataset grid normalisation
+     // (the old code rescaled every node's position based on the
+     // min/max grid coordinate across the WHOLE dataset, which meant
+     // adding a single outlier node could silently reflow every other
+     // node's position — not something you want while hand-editing).
      // ============================================================
 
      export async function treeGen(tree) {
 
-         // ---- Node data -----------------------------------------------
-         const res1  = await fetch('https://raw.githubusercontent.com/Dat-guy-test/project/refs/heads/main/test');
-         const text1 = await res1.text();
-         const lines = text1.split('\n');
+         const res  = await fetch(NODE_DATA_URL);
+         const data = await res.json();
 
-         const atrs = [];
-         for (let i = 0; i < lines.length - 1; i++) {
-             atrs[i]    = lines[i].split(' | ');
-             atrs[i][6] = atrs[i][6].split(' '); // requires → array
-         }
+         // ---- Mutually-exclusive groups ---------------------------
+         // Shared objects: every member TreeNode's `.excl` points at
+         // the SAME object, so there's exactly one source of truth
+         // per group (matters once edit-mode can add/remove members).
+         // `members` is validated here — a malformed/missing members
+         // array becomes [] with a console error instead of crashing
+         // the first time something tries to iterate it.
+         tree.mutExclGroups = (data.mutuallyExclusive || []).map(g => {
+             if (!Array.isArray(g.members)) {
+                 console.error(`Tree: mutual-exclusion group "${g.label}" has no valid "members" array — treating it as empty. Check nodes.json.`);
+             }
+             return {
+                 label:   g.label,
+                 max:     g.max,
+                 members: Array.isArray(g.members) ? [...g.members] : [],
+             };
+         });
 
-         // Normalise fi / theta grid coordinates to the tree's angular span
-         let bigFi = 0, lowFi = 0, bigTh = 0, lowTh = 0;
-         for (const row of atrs) {
-             if (row[4] > bigFi) bigFi = row[4];
-             if (row[4] < lowFi) lowFi = row[4];
-             if (row[5] > bigTh) bigTh = row[5];
-             if (row[5] < lowTh) lowTh = row[5];
-         }
-         const fiSteps = bigFi - lowFi;
-         const thSteps = bigTh - lowTh;
+         // ---- Nodes -------------------------------------------------
+         for (const nodeData of data.nodes) {
+             const fiRad = nodeData.fi    * (Math.PI / 180);
+             const thRad = nodeData.theta * (Math.PI / 180);
 
-         const minKorFi = tree.span[0] * (Math.PI / 180);
-         const maxKorFi = tree.span[1] * (Math.PI / 180);
-         const minKorTh = tree.span[2] * (Math.PI / 180);
-         const maxKorTh = tree.span[3] * (Math.PI / 180);
+             const x = tree.sphereRadius * Math.cos(thRad) * Math.cos(fiRad);
+             const y = tree.sphereRadius * Math.sin(thRad);
+             const z = tree.sphereRadius * Math.cos(thRad) * Math.sin(fiRad);
 
-         // ---- Mutually-exclusive group data ---------------------------
-         const res2  = await fetch('https://raw.githubusercontent.com/Dat-guy-test/project/refs/heads/main/mutuallyExclusive');
-         const text2 = await res2.text();
-         const lines2 = text2.split('\n');
-
-         for (let i = 0; i < lines2.length - 1; i++) {
-             tree.mutExcl[i] = lines2[i];
-             const exclIDs = lines2[i].split(' ');
-             // Stamp the full group array onto each member node's atrs[k][8]
-             for (let j = 2; j < exclIDs.length; j++) {
-                 for (let k = 0; k < lines.length - 1; k++) {
-                     if (atrs[k][0] == exclIDs[j]) atrs[k][8] = exclIDs;
+             let exclGroup = null;
+             if (nodeData.exclGroup) {
+                 exclGroup = tree.mutExclGroups.find(g => g.label === nodeData.exclGroup) || null;
+                 if (!exclGroup) {
+                     console.error(`Tree: node "${nodeData.id}" references exclGroup "${nodeData.exclGroup}", but no mutuallyExclusive entry has that label. Check nodes.json.`);
                  }
              }
-         }
 
-         // ---- Instantiate TreeNodes -----------------------------------
-         for (let i = 0; i < lines.length - 1; i++) {
-             const fi = minKorFi + (atrs[i][4] - lowFi) * (maxKorFi - minKorFi) / fiSteps;
-             const th = minKorTh + (atrs[i][5] - lowTh) * (maxKorTh - minKorTh) / thSteps;
-
-             const x = tree.sphereRadius * Math.cos(th) * Math.cos(fi);
-             const y = tree.sphereRadius * Math.sin(th);
-             const z = tree.sphereRadius * Math.cos(th) * Math.sin(fi);
-
-             tree.nodes[i] = new TreeNode(
-                 atrs[i][0], atrs[i][1], atrs[i][2], atrs[i][3],
-                 x, y, z,
-                 fi, th,
-                 atrs[i][6], atrs[i][7], atrs[i][8], atrs[i][9]
+             const node = new TreeNode(
+                 String(nodeData.id), nodeData.name, nodeData.desc, nodeData.hoverText,
+                 x, y, z, fiRad, thRad,
+                 nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature
              );
-             AppState.scene.add(tree.nodes[i]);
+
+             tree.nodes.push(node);
+             AppState.scene.add(node);
          }
 
          AppState.cameraRotationOffsetFromTree = -Math.PI / 2;
