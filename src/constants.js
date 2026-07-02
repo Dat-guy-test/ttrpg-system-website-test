@@ -26,4 +26,4 @@ export const BLOOM_LAYER = 2;
  *     No other code needs to change — treeGen() just fetches + parses
  *     JSON from whatever URL is here.
  */
-export const NODE_DATA_URL = 'nodes.json';
+export const NODE_DATA_URL = '/src/nodes.json';
