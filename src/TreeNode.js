@@ -279,4 +279,71 @@ export class TreeNode extends THREE.Mesh {
 
                 getFi()    { return this.fi;    }
                 getTheta() { return this.theta; }
+
+                // ----------------------------------------------------------------
+                // reposition  (edit mode)
+                // ----------------------------------------------------------------
+
+                /**
+                 * Recomputes this node's world position from new fi/theta
+                 * (in DEGREES) and moves every visual piece — hit-sphere,
+                 * star, and label — to match. Mirrors the placement math
+                 * used by the constructor and by Tree.js's treeGen().
+                 *
+                 * Does NOT redraw arcs itself — call AppState.tr.rebuildArcs()
+                 * afterward (edit-mode's save flow does this), since arc
+                 * geometry is baked in at draw time and won't follow a
+                 * node that moves later.
+                 *
+                 * @param {number} fiDeg
+                 * @param {number} thetaDeg
+                 */
+                reposition(fiDeg, thetaDeg) {
+                    const R     = AppState.tr.sphereRadius;
+                    const fiRad = fiDeg    * Math.PI / 180;
+                    const thRad = thetaDeg * Math.PI / 180;
+
+                    const x = R * Math.cos(thRad) * Math.cos(fiRad);
+                    const y = R * Math.sin(thRad);
+                    const z = R * Math.cos(thRad) * Math.sin(fiRad);
+
+                    this.position.set(x, y, z);
+                    this.star.position.set(x, y, z);
+
+                    this.fi    = -fiRad; // negated, matching the constructor's convention
+                    this.theta = thRad;
+
+                    this.nameText.position.set(
+                        this.position.x + (this.nodeSize + 0.01) * Math.sin(this.fi),
+                                               this.position.y - this.centerOffset,
+                                               this.position.z + (this.nodeSize + 0.01) * Math.cos(this.fi)
+                    );
+                    const outward = this.position.clone().multiplyScalar(0.5);
+                    this.nameText.lookAt(outward);
+                }
+
+                // ----------------------------------------------------------------
+                // toJSON  (edit mode export)
+                // ----------------------------------------------------------------
+
+                /**
+                 * Serializes this node back into the nodes.json node shape.
+                 * fi/theta are recovered (in degrees) from the same
+                 * negated-radian fields the constructor/reposition() set,
+                 * so export round-trips exactly with what treeGen() reads.
+                 */
+                toJSON() {
+                    return {
+                        id:          this.nodeId,
+                        name:        this.nodeName,
+                        desc:        this.nodeDesc,
+                        hoverText:   this.hovertext,
+                        fi:          -this.fi * 180 / Math.PI,
+                        theta:        this.theta * 180 / Math.PI,
+                        requires:    this.requires,
+                        cost:        this.nodeCost,
+                        temperature: this.temperature,
+                        exclGroup:   this.excl ? this.excl.label : null,
+                    };
+                }
      }

@@ -284,3 +284,80 @@ body {
   letter-spacing: 0.05em;
   color: #9a9ac0;
 }
+
+/* ---- Edit-mode additions: toolbar, status, form fields ---- */
+
+.editor-toolbar {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.editor-btn {
+  background-color: #33334a;
+  color: #f0f0f0;
+  border: 1px solid #6a6a8a;
+  border-radius: 0.35em;
+  padding: 0.4em 0.7em;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.editor-btn:hover {
+  background-color: #44446a;
+}
+
+.editor-save-btn {
+  width: 100%;
+  margin-top: 0.25em;
+  background-color: #3a5a3a;
+  border-color: #5a8a5a;
+}
+
+.editor-save-btn:hover {
+  background-color: #4a7a4a;
+}
+
+.editor-status {
+  min-height: 1.2em;
+  font-size: 0.8em;
+  color: #9adf9a;
+  margin-bottom: 0.25em;
+}
+
+.editor-status-error {
+  color: #e08a8a;
+}
+
+.editor-body input[type="text"],
+.editor-body input[type="number"],
+.editor-body textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #1c1c26;
+  color: #f0f0f0;
+  border: 1px solid #55556e;
+  border-radius: 0.3em;
+  padding: 0.35em 0.5em;
+  font-family: inherit;
+  font-size: 0.9em;
+  margin-bottom: 0.5em;
+}
+
+.editor-body textarea {
+  resize: vertical;
+}
+
+.editor-row {
+  display: flex;
+  gap: 0.5em;
+}
+
+.editor-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-field.readonly {
+  opacity: 0.85;
+}

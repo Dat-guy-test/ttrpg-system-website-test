@@ -254,15 +254,45 @@ export class Tree {
 
     /**
      * 1) Builds the nodeIDs sparse map (nodeId → array index).
-     * 2) Draws great-circle arcs between every node and its requirements.
-     *    A requirement id that doesn't resolve to a real node (typo,
-     *    dangling reference) is logged via resolveNode() and that ONE
-     *    arc is skipped — the rest of the tree still draws normally.
+     * 2) Draws every requirement arc via rebuildArcs().
      */
     init() {
         for (let i = 0; i < this.nodes.length; i++) {
             this.nodeIDs[this.nodes[i].nodeId] = i;
         }
+        this.rebuildArcs();
+    }
+
+    /**
+     * Removes every currently-drawn arc/tube-pair from the scene and
+     * clears each node's skyLines/reqTubes bookkeeping. Always call
+     * this before redrawing, or arcs pile up as duplicates.
+     */
+    clearArcs() {
+        for (const node of this.nodes) {
+            for (const line of node.skyLines) AppState.scene.remove(line);
+            for (const pair of node.reqTubes) {
+                AppState.scene.remove(pair[0]);
+                AppState.scene.remove(pair[1]);
+            }
+            node.skyLines = [];
+            node.reqTubes = [];
+        }
+    }
+
+    /**
+     * (Re)draws every requirement arc from scratch, using each node's
+     * CURRENT world position. Safe to call any time node positions or
+     * requirements change — e.g. edit-mode's save flow calls this
+     * after TreeNode.reposition() so arcs follow a moved node instead
+     * of staying pinned to its old spot. Always clears first.
+     *
+     * A requirement id that doesn't resolve to a real node (typo,
+     * dangling reference) is logged via resolveNode() and that ONE
+     * arc is skipped — the rest of the tree still draws normally.
+     */
+    rebuildArcs() {
+        this.clearArcs();
 
         for (let i = 0; i < this.nodes.length; i++) {
             for (let j = 0; j < this.nodes[i].requires.length; j++) {
@@ -319,6 +349,28 @@ export class Tree {
         const node = this.resolveNode(ID);
         if (node) node.getWorldPosition(v);
         return v;
+    }
+
+    /**
+     * Serializes the whole tree back into the nodes.json shape — the
+     * same shape treeGen() reads. Used by edit-mode's Export button.
+     * Mutual-exclusion groups are deduplicated (each is a single
+     * shared object referenced by every member node's `.excl`).
+     *
+     * @returns {{nodes: object[], mutuallyExclusive: object[]}}
+     */
+    toJSON() {
+        const groups = new Set();
+        for (const n of this.nodes) if (n.excl) groups.add(n.excl);
+
+        return {
+            nodes: this.nodes.map(n => n.toJSON()),
+            mutuallyExclusive: Array.from(groups).map(g => ({
+                label:   g.label,
+                max:     g.max,
+                members: [...g.members],
+            })),
+        };
     }
      }
 
