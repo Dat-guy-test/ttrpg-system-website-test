@@ -67,16 +67,26 @@ const AppState = {
     starClasses: [],    // StarModel instances, one per TreeNode; updated by animate()
 
     // ---- Edit mode (skill-tree editor) -------------------------------
-    // editMode:    toggled by the 'E' key (see inputHandlers.js); when true,
-    //              clicking a node opens the read-only inspector instead of
-    //              running perk activation/deactivation.
-    // editSubMode: reserved for later editor steps (e.g. 'addNode', 'connect',
-    //              'deleteNode'); currently unused — everything is 'select'.
-    // selectedNode: the TreeNode currently shown in the inspector panel, or
-    //              null when nothing is selected.
-    editMode:     false,
-    editSubMode:  'select',
-    selectedNode: null,
+    // editMode:     toggled by the 'E' key (see inputHandlers.js); when true,
+    //              clicking a node opens the inspector instead of running
+    //              perk activation/deactivation.
+    // editSubMode: 'select' (inspect/edit), 'addNode' (click the debug
+    //              sphere to place a node), or 'connect' (click a
+    //              dependent node then its prerequisite to link them).
+    // selectedNode: the TreeNode currently shown in the inspector panel.
+    // connectSourceNode: the "dependent" node clicked first in connect
+    //              submode, awaiting a second click on its prerequisite.
+    // pendingNewNodePos: {fiDeg, thetaDeg} captured by a treesphere click
+    //              in addNode submode, while the "create node" form is open.
+    // nextCustomNodeId: auto-generated id counter for new nodes that don't
+    //              specify their own id; starts well above the sample
+    //              data's ids so it can't collide with them.
+    editMode:          false,
+    editSubMode:       'select',
+    selectedNode:      null,
+    connectSourceNode: null,
+    pendingNewNodePos: null,
+    nextCustomNodeId:  100000,
 
     // ---- Raycasting / hover ----------------------------------------
     intersects: [],

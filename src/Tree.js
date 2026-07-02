@@ -35,6 +35,7 @@ import AppState from './appState.js';
 import { TreeNode } from './TreeNode.js';
 import { computePanCamera } from './cameraControls.js';
 import { NODE_DATA_URL } from './constants.js';
+import { handleTreesphereClick, handleEditModeConnectionClick } from './editMode.js';
 
 
 export class Tree {
@@ -52,11 +53,14 @@ export class Tree {
 
         this.sphereRadius = 30;
 
-        // Semi-transparent debug sphere showing the tree's extent
+        // Semi-transparent debug sphere showing the tree's extent.
+        // In edit mode's "addNode" submode, clicking it places a new node
+        // at the clicked fi/theta — see handleTreesphereClick() in editMode.js.
         this.treesphere = new THREE.Mesh(
             new THREE.SphereGeometry(this.sphereRadius, 32, 16),
                                          new THREE.MeshBasicMaterial({ color: 'purple', transparent: true, opacity: 0.25 })
         );
+        this.treesphere.onClick = (hit) => handleTreesphereClick(hit);
         AppState.scene.add(this.treesphere);
     }
 
@@ -200,6 +204,7 @@ export class Tree {
         if (kej === -1) {
             // AND link
             mesh1h.onClick = function () {
+                if (AppState.editMode) { handleEditModeConnectionClick(self, a, b); return; }
                 const reqNode = self.nodes[self.nodeIDs[self.nodes[a].requires[b]]];
                 if (!reqNode.isHovered && !AppState.panCamBool && !AppState.zoomCamBool) {
                     AppState.panCamBool = true;
@@ -210,6 +215,7 @@ export class Tree {
                 }
             };
             mesh2h.onClick = function () {
+                if (AppState.editMode) { handleEditModeConnectionClick(self, a, b); return; }
                 const reqNode = self.nodes[self.nodeIDs[self.nodes[a].requires[b]]];
                 if (!self.nodes[a].isHovered && !AppState.panCamBool && !AppState.zoomCamBool) {
                     AppState.panCamBool = true;
@@ -222,6 +228,7 @@ export class Tree {
         } else {
             // OR link
             mesh1h.onClick = function () {
+                if (AppState.editMode) { handleEditModeConnectionClick(self, a, b); return; }
                 const reqNode = self.nodes[self.nodeIDs[ej[kej]]];
                 if (!reqNode.isHovered && !AppState.panCamBool && !AppState.zoomCamBool) {
                     AppState.panCamBool = true;
@@ -232,6 +239,7 @@ export class Tree {
                 }
             };
             mesh2h.onClick = function () {
+                if (AppState.editMode) { handleEditModeConnectionClick(self, a, b); return; }
                 const reqNode = self.nodes[self.nodeIDs[ej[kej]]];
                 if (!self.nodes[a].isHovered && !AppState.panCamBool && !AppState.zoomCamBool) {
                     AppState.panCamBool = true;
@@ -371,6 +379,162 @@ export class Tree {
                 members: [...g.members],
             })),
         };
+    }
+
+    // ----------------------------------------------------------------
+    // Editor mutations (add node / add / remove requirement)
+    // ----------------------------------------------------------------
+
+    /**
+     * Converts a world-space point ON the sphere (e.g. a raycaster hit
+     * against this.treesphere) back into fi/theta degrees — the exact
+     * inverse of the x/y/z math in treeGen()/TreeNode.reposition().
+     * Used by handleTreesphereClick() in editMode.js to place a new
+     * node where the user clicked.
+     *
+     * @param {THREE.Vector3} point
+     * @returns {{fiDeg: number, thetaDeg: number}}
+     */
+    worldPointToFiTheta(point) {
+        const r = this.sphereRadius;
+        const thetaRad = Math.asin(Math.max(-1, Math.min(1, point.y / r)));
+        const fiRad    = Math.atan2(point.z, point.x);
+        return {
+            fiDeg:    fiRad * 180 / Math.PI,
+            thetaDeg: thetaRad * 180 / Math.PI,
+        };
+    }
+
+    /**
+     * Creates and inserts a new TreeNode from edit-mode's "Add Node"
+     * form. New nodes start with no requirements — link them up
+     * afterward via addRequirement() / connect submode.
+     *
+     * @param {object} data - {id?, name, desc, hoverText, cost, temperature, fi, theta, exclGroup?}
+     *   id is auto-generated (AppState.nextCustomNodeId) if omitted.
+     *   fi/theta are in DEGREES.
+     * @returns {TreeNode|null} the new node, or null if `id` was already taken
+     */
+    addNode(data) {
+        const id = (data.id !== undefined && data.id !== null && data.id !== '')
+            ? String(data.id)
+            : String(AppState.nextCustomNodeId++);
+
+        if (this.nodeIDs[id] !== undefined) {
+            console.error(`Tree.addNode: id "${id}" is already in use — pick a different id.`);
+            return null;
+        }
+
+        const fiRad = data.fi    * Math.PI / 180;
+        const thRad = data.theta * Math.PI / 180;
+        const x = this.sphereRadius * Math.cos(thRad) * Math.cos(fiRad);
+        const y = this.sphereRadius * Math.sin(thRad);
+        const z = this.sphereRadius * Math.cos(thRad) * Math.sin(fiRad);
+
+        let exclGroup = null;
+        if (data.exclGroup) {
+            exclGroup = this.mutExclGroups.find(g => g.label === data.exclGroup) || null;
+            if (!exclGroup) console.error(`Tree.addNode: exclGroup "${data.exclGroup}" not found — leaving node unassigned.`);
+        }
+
+        const node = new TreeNode(
+            id, data.name || 'New Node', data.desc || '', data.hoverText || '',
+            x, y, z, fiRad, thRad,
+            [], data.cost || 0, exclGroup, data.temperature || 6000
+        );
+
+        this.nodeIDs[id] = this.nodes.length;
+        this.nodes.push(node);
+        AppState.scene.add(node);
+
+        if (exclGroup && !exclGroup.members.includes(id)) exclGroup.members.push(id);
+
+        return node;
+    }
+
+    /**
+     * Appends a requirement entry to a node's `requires` and redraws
+     * arcs so the new connection is visible immediately.
+     *
+     * @param {string} nodeId
+     * @param {string|string[]} reqEntry  — a single id (AND) or an
+     *   array of ids (OR group)
+     * @returns {boolean} whether it was added
+     */
+    addRequirement(nodeId, reqEntry) {
+        const node = this.resolveNode(nodeId);
+        if (!node) return false;
+        node.requires.push(reqEntry);
+        this.rebuildArcs();
+        return true;
+    }
+
+    /**
+     * Removes one requirement entry (by index into `requires`) from a
+     * node and redraws arcs. Used both by the inspector's per-entry
+     * "✕" buttons and by clicking an arc directly in edit mode.
+     *
+     * @param {string} nodeId
+     * @param {number} reqIndex
+     * @returns {boolean} whether it was removed
+     */
+    removeRequirement(nodeId, reqIndex) {
+        const node = this.resolveNode(nodeId);
+        if (!node || node.requires[reqIndex] === undefined) return false;
+        node.requires.splice(reqIndex, 1);
+        this.rebuildArcs();
+        return true;
+    }
+
+    /**
+     * Deletes a node entirely: removes its meshes (hit-sphere, star,
+     * label, and any arcs touching it) from the scene, scrubs every
+     * OTHER node's `requires` of any reference to it (a dangling
+     * reference would otherwise crash the next areReqsMet() call),
+     * removes it from its mutual-exclusion group's members if any,
+     * rebuilds nodeIDs (indices shift after the splice), and redraws
+     * arcs.
+     *
+     * Note: this node's StarModel entry in AppState.starClasses is
+     * left in place rather than reindexed — every other node's
+     * `starID` is an index into that array, so removing an entry
+     * would silently point them at the wrong shader. The orphaned
+     * entry just sits idle; harmless, if a little wasteful.
+     *
+     * @param {string} id
+     * @returns {boolean} whether a node was actually removed
+     */
+    removeNode(id) {
+        const idx  = this.nodeIDs[id];
+        const node = this.nodes[idx];
+        if (!node) return false;
+
+        AppState.scene.remove(node);       // TreeNode itself is the hit-sphere mesh
+        AppState.scene.remove(node.star);
+        AppState.scene.remove(node.nameText);
+        for (const line of node.skyLines) AppState.scene.remove(line);
+        for (const pair of node.reqTubes) {
+            AppState.scene.remove(pair[0]);
+            AppState.scene.remove(pair[1]);
+        }
+
+        for (const n of this.nodes) {
+            if (n === node) continue;
+            n.requires = n.requires
+                .map(req => Array.isArray(req) ? req.filter(m => m !== id) : req)
+                .filter(req => Array.isArray(req) ? req.length > 0 : req !== id);
+        }
+
+        if (node.excl && Array.isArray(node.excl.members)) {
+            node.excl.members = node.excl.members.filter(m => m !== id);
+        }
+
+        this.nodes.splice(idx, 1);
+        this.nodeIDs = [];
+        for (let i = 0; i < this.nodes.length; i++) this.nodeIDs[this.nodes[i].nodeId] = i;
+
+        this.rebuildArcs();
+        return true;
     }
      }
 

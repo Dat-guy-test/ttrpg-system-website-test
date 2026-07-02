@@ -361,3 +361,45 @@ body {
 .editor-field.readonly {
   opacity: 0.85;
 }
+
+/* ---- Edit-mode additions: mode buttons, requirement list ---- */
+
+.editor-mode-btn.active {
+  background-color: #5a5a8a;
+  border-color: #9a9ad0;
+}
+
+.editor-req-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.25em 0;
+  border-bottom: 1px solid #33334a;
+  font-size: 0.85em;
+}
+
+.editor-btn-small {
+  padding: 0.15em 0.5em;
+  font-size: 0.85em;
+}
+
+.editor-body .editor-hint {
+  display: block;
+  margin: 0.25em 0 0.5em;
+}
+
+.editor-btn-danger {
+  background-color: #5a2a2a;
+  border-color: #a05a5a;
+}
+
+.editor-btn-danger:hover {
+  background-color: #7a3a3a;
+}
+
+.editor-row .editor-save-btn,
+.editor-row .editor-btn-danger {
+  flex: 1;
+  margin-top: 0.25em;
+}
