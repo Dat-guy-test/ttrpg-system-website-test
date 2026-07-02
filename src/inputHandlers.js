@@ -24,7 +24,6 @@ import AppState from './appState.js';
 import { computeZoomCamera, computePanCamera } from './cameraControls.js';
 import { toggleEditMode } from './editMode.js';
 
-
 export function registerInputHandlers() {
 
   // ============================================================
@@ -125,7 +124,7 @@ export function registerInputHandlers() {
         }
         break;
 
-      case '1':
+      case '[':
         // Switch to the main skill-tree camera
         AppState.activeCamera      = AppState.camera;
         AppState.rendek.camera     = AppState.activeCamera;
@@ -134,7 +133,7 @@ export function registerInputHandlers() {
         console.log('Activating main camera…');
         break;
 
-      case '2':
+      case ']':
         // Switch to the free-fly camera
         AppState.activeCamera      = AppState.freeCamera;
         AppState.rendek.camera     = AppState.activeCamera;
@@ -143,8 +142,8 @@ export function registerInputHandlers() {
         console.log('Activating free camera…');
         break;
 
-      case 'e':
-      case 'E':
+      case '`':
+      case '`':
         // Toggle the skill-tree editor (edit mode + inspector panel)
         toggleEditMode();
         break;
