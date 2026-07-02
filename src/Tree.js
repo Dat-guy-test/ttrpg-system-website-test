@@ -68,7 +68,7 @@ export class Tree {
         // BackSide instead of the default).
         this.treesphere = new THREE.Mesh(
             new THREE.SphereGeometry(this.sphereRadius, 32, 16),
-                                         new THREE.MeshBasicMaterial({ color: 'purple', transparent: true, opacity: 0.25, side: THREE.DoubleSide })
+                                         new THREE.MeshBasicMaterial({ color: 'black', transparent: true, opacity: 0.25, side: THREE.DoubleSide })
         );
         this.treesphere.onClick = (hit) => handleTreesphereClick(hit);
         AppState.scene.add(this.treesphere);
