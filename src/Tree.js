@@ -56,9 +56,19 @@ export class Tree {
         // Semi-transparent debug sphere showing the tree's extent.
         // In edit mode's "addNode" submode, clicking it places a new node
         // at the clicked fi/theta — see handleTreesphereClick() in editMode.js.
+        //
+        // IMPORTANT: side must be DoubleSide. AppState.camera sits at the
+        // origin — the exact center of this sphere — so every ray fired
+        // outward from it hits the sphere's BACK face (normals point
+        // outward, same direction as the ray, which is the definition of
+        // a back face). With the default FrontSide material, THREE.js's
+        // raycaster silently back-face-culls that hit and Add Node never
+        // fires at all, even though the sphere still renders fine (same
+        // reason sceneSetup.js's skybox — also camera-enclosing — uses
+        // BackSide instead of the default).
         this.treesphere = new THREE.Mesh(
             new THREE.SphereGeometry(this.sphereRadius, 32, 16),
-                                         new THREE.MeshBasicMaterial({ color: 'purple', transparent: true, opacity: 0.25 })
+                                         new THREE.MeshBasicMaterial({ color: 'purple', transparent: true, opacity: 0.25, side: THREE.DoubleSide })
         );
         this.treesphere.onClick = (hit) => handleTreesphereClick(hit);
         AppState.scene.add(this.treesphere);
