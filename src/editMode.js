@@ -310,13 +310,48 @@ function renderExistingNodeForm(node) {
         </div>
         <div class="editor-hint">Tip: you can also switch to Connect mode and click nodes directly.</div>
 
+        <label class="editor-label" for="ed-exclgroup">Mutual-exclusion group</label>
+        <select id="ed-exclgroup">
+            <option value="">None</option>
+            ${(AppState.tr.mutExclGroups || []).map(g => `
+                <option value="${escapeHtml(g.label)}" ${node.excl && node.excl.label === g.label ? 'selected' : ''}>
+                    ${escapeHtml(g.label)} (max ${g.max}, ${g.members.length} member${g.members.length === 1 ? '' : 's'})
+                </option>
+            `).join('')}
+            <option value="__new__">+ New group…</option>
+        </select>
+
+        <div id="ed-newgroup-wrap" style="display:none;">
+            <label class="editor-label" for="ed-newgroup-label">New group label</label>
+            <input id="ed-newgroup-label" type="text" placeholder="e.g. origins" />
+        </div>
+
+        <label class="editor-label" for="ed-exclmax">Max active in this group</label>
+        <input id="ed-exclmax" type="number" min="1" value="${node.excl ? node.excl.max : 1}" />
+
         <div class="editor-field readonly">
-            <span class="editor-label">Excl. group</span><span>${formatExclGroup(node.excl)}</span>
+            <span class="editor-label">Current group</span><span>${formatExclGroup(node.excl)}</span>
         </div>
         <div class="editor-field readonly">
             <span class="editor-label">Active</span><span>${node.nodeActive ? 'Yes' : 'No'}</span>
         </div>
     `;
+
+    const exclSelect  = bodyEl.querySelector('#ed-exclgroup');
+    const newGroupWrap = bodyEl.querySelector('#ed-newgroup-wrap');
+    const maxInput    = bodyEl.querySelector('#ed-exclmax');
+
+    exclSelect.addEventListener('change', () => {
+        const val = exclSelect.value;
+        newGroupWrap.style.display = (val === '__new__') ? '' : 'none';
+
+        if (val === '__new__' || val === '') {
+            maxInput.value = 1;
+        } else {
+            const g = (AppState.tr.mutExclGroups || []).find(g => g.label === val);
+            if (g) maxInput.value = g.max;
+        }
+    });
 
     bodyEl.querySelector('#ed-save').addEventListener('click', () => saveNode(node));
     bodyEl.querySelector('#ed-delete').addEventListener('click', () => deleteNodeWithConfirm(node));
@@ -338,16 +373,33 @@ function saveNode(node) {
     const fiDeg = Number(bodyEl.querySelector('#ed-fi').value);
     const thDeg = Number(bodyEl.querySelector('#ed-theta').value);
 
+    const exclSelectVal = bodyEl.querySelector('#ed-exclgroup').value;
+    const newGroupLabel = bodyEl.querySelector('#ed-newgroup-label')?.value.trim() ?? '';
+    const exclMax = Number(bodyEl.querySelector('#ed-exclmax').value);
+
     if (!name) { setStatus('Name can\'t be empty.', true); return; }
     if (!Number.isFinite(cost) || cost < 0) { setStatus('Cost must be a non-negative number.', true); return; }
     if (!Number.isFinite(temp) || temp <= 0) { setStatus('Temperature must be a positive number.', true); return; }
     if (!Number.isFinite(fiDeg) || !Number.isFinite(thDeg)) { setStatus('Fi/theta must be numbers.', true); return; }
+
+    let groupLabel = null;
+    if (exclSelectVal === '__new__') {
+        if (!newGroupLabel) { setStatus('New group needs a label.', true); return; }
+        groupLabel = newGroupLabel;
+    } else if (exclSelectVal) {
+        groupLabel = exclSelectVal;
+    }
+    if (groupLabel && (!Number.isFinite(exclMax) || exclMax < 1)) {
+        setStatus('Max active must be at least 1.', true); return;
+    }
 
     node.nodeName    = name;
     node.nodeDesc    = desc;
     node.hovertext   = hover;
     node.nodeCost    = cost;
     node.temperature = temp; // doesn't re-tint the already-loaded star texture — cosmetic only on export
+
+    AppState.tr.setNodeExclGroup(node.nodeId, groupLabel, groupLabel ? exclMax : undefined);
 
     const moved = fiDeg !== (-node.fi * 180 / Math.PI) || thDeg !== (node.theta * 180 / Math.PI);
     if (moved) {

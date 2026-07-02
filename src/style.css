@@ -331,6 +331,7 @@ body {
 
 .editor-body input[type="text"],
 .editor-body input[type="number"],
+.editor-body select,
 .editor-body textarea {
   width: 100%;
   box-sizing: border-box;

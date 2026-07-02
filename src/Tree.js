@@ -537,6 +537,9 @@ export class Tree {
 
         if (node.excl && Array.isArray(node.excl.members)) {
             node.excl.members = node.excl.members.filter(m => m !== id);
+            if (node.excl.members.length === 0) {
+                this.mutExclGroups = this.mutExclGroups.filter(g => g !== node.excl);
+            }
         }
 
         this.nodes.splice(idx, 1);
@@ -544,6 +547,55 @@ export class Tree {
         for (let i = 0; i < this.nodes.length; i++) this.nodeIDs[this.nodes[i].nodeId] = i;
 
         this.rebuildArcs();
+        return true;
+    }
+
+    /**
+     * Assigns, reassigns, or clears a node's mutual-exclusion group,
+     * and sets that group's `max`. Since a group is a single object
+     * shared by every member's `.excl`, updating `max` here instantly
+     * applies to every other member too — there's no per-node max,
+     * only a per-group one.
+     *
+     * - Always detaches the node from whatever group it was in first.
+     *   If that leaves the old group with zero members, the group is
+     *   dropped from mutExclGroups entirely (no orphaned groups).
+     * - `groupLabel` falsy (null/'') just clears the node's group.
+     * - Otherwise finds a group with that label, or creates one (with
+     *   the given `max`, minimum 1) if none exists yet.
+     *
+     * @param {string} nodeId
+     * @param {string|null} groupLabel
+     * @param {number} [max]  — used/updated when groupLabel is truthy
+     * @returns {boolean}
+     */
+    setNodeExclGroup(nodeId, groupLabel, max) {
+        const node = this.resolveNode(nodeId);
+        if (!node) return false;
+
+        const oldGroup = node.excl;
+        if (oldGroup && Array.isArray(oldGroup.members)) {
+            oldGroup.members = oldGroup.members.filter(m => m !== nodeId);
+            if (oldGroup.members.length === 0) {
+                this.mutExclGroups = this.mutExclGroups.filter(g => g !== oldGroup);
+            }
+        }
+
+        if (!groupLabel) {
+            node.excl = null;
+            return true;
+        }
+
+        let group = this.mutExclGroups.find(g => g.label === groupLabel);
+        if (!group) {
+            group = { label: groupLabel, max: Math.max(1, max || 1), members: [] };
+            this.mutExclGroups.push(group);
+        } else if (max) {
+            group.max = Math.max(1, max);
+        }
+
+        if (!group.members.includes(nodeId)) group.members.push(nodeId);
+        node.excl = group;
         return true;
     }
      }
