@@ -98,6 +98,24 @@
 }
 .charSection-addRow input { flex: 1; }
 
+/* ---- Read-only, perk-driven values ------------------------------- */
+/* Used for Charakterystyki, Umiejętności (both tracks), and resource
+   maxima — anything only the perk tree can change. A dashed underline
+   plus help cursor hints there's a tooltip breakdown when a perk is
+   actually contributing; with no modifiers it's just a plain number. */
+.charStat-readonly {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  font-size: 1.1em;
+  font-weight: 600;
+  padding: 0.15em 0.3em;
+}
+.charStat-readonly[title] {
+  cursor: help;
+  border-bottom: 0.15em dashed rgb(187, 128, 241);
+}
+
 /* ---- Resources --------------------------------------------------- */
 .charResourceGroup {
   display: flex;
@@ -120,6 +138,7 @@
   background: transparent;
 }
 .charResourceBox-slash { color: #9a9a94; }
+.charResourceBox-max { font-size: 1.2em; }
 
 /* ---- Damage table -------------------------------------------------- */
 .dmgTable {
@@ -152,7 +171,7 @@
   gap: 0.6em;
 }
 .charStatGrid-abilities {
-  grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(10.5em, 1fr));
 }
 
 .charStatField { width: auto; height: auto; }
@@ -161,26 +180,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4em;
   height: 2.6em;
 }
-.charStat-baseInput {
-  width: 3.2em;
-  text-align: center;
-  border-color: transparent;
-  background: transparent;
-  font-size: 1.1em;
-}
 
-/* Effective-value badge — only rendered once perk modifiers exist */
-.charStat-badge {
-  font-size: 0.75em;
-  font-weight: 600;
-  padding: 0.15em 0.5em;
-  border-radius: 1em;
-  background-color: rgb(232, 172, 255);
-  color: #4a1b5c;
-  cursor: help;
+/* Ability boxes are taller — they show two stacked sub-fields
+   (Doświadczenie + Improwizacja) instead of one value. */
+.charStatField-ability { height: auto; }
+.charStatField-value-ability {
+  height: auto;
+  flex-direction: column;
+  gap: 0.15em;
+  padding: 0.4em 0;
+}
+.charAbility-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4em;
+  width: 100%;
+}
+.charAbility-subLabel {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6a6a66;
+  min-width: 3.6em;
+  text-align: right;
 }
 
 /* ---- Lists (Wprawa / Perki) ------------------------------------------- */
@@ -250,6 +275,7 @@
     border-color: #999999;
     color: #000000;
   }
+  .charStat-readonly[title] { border-bottom-color: #999999; }
 
   .charSection { break-inside: avoid; }
   .dmgTable, .charStatGrid { break-inside: avoid; }

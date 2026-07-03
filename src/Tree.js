@@ -28,6 +28,12 @@
 // Every member TreeNode's `.excl` points at the SAME object, so all
 // members of a group are always looking at one shared max/members —
 // convenient once edit-mode code starts mutating groups live.
+//
+// A node's `effect` (optional) is { type, key, amount } describing
+// its contribution to the Character Data tab — see characterState.js's
+// EFFECT_TYPES and perkEffects.js. setNodeEffect() below is the one
+// place that mutates it, so an active node's contribution always
+// stays in sync with its current effect definition.
 // ============================================================
 
 import * as THREE from 'three';
@@ -36,6 +42,7 @@ import { TreeNode } from './TreeNode.js';
 import { computePanCamera } from './cameraControls.js';
 import { NODE_DATA_URL } from './constants.js';
 import { handleTreesphereClick, handleEditModeConnectionClick } from './editMode.js';
+import { applyNodeEffect, removeNodeEffect } from './perkEffects.js';
 
 
 export class Tree {
@@ -392,7 +399,7 @@ export class Tree {
     }
 
     // ----------------------------------------------------------------
-    // Editor mutations (add node / add / remove requirement)
+    // Editor mutations (add node / add / remove requirement / effect)
     // ----------------------------------------------------------------
 
     /**
@@ -420,7 +427,7 @@ export class Tree {
      * form. New nodes start with no requirements — link them up
      * afterward via addRequirement() / connect submode.
      *
-     * @param {object} data - {id?, name, desc, hoverText, cost, temperature, fi, theta, exclGroup?}
+     * @param {object} data - {id?, name, desc, hoverText, cost, temperature, fi, theta, exclGroup?, effect?}
      *   id is auto-generated (AppState.nextCustomNodeId) if omitted.
      *   fi/theta are in DEGREES.
      * @returns {TreeNode|null} the new node, or null if `id` was already taken
@@ -450,7 +457,8 @@ export class Tree {
         const node = new TreeNode(
             id, data.name || 'New Node', data.desc || '', data.hoverText || '',
             x, y, z, fiRad, thRad,
-            [], data.cost || 0, exclGroup, data.temperature || 6000
+            [], data.cost || 0, exclGroup, data.temperature || 6000,
+            data.effect || null
         );
 
         this.nodeIDs[id] = this.nodes.length;
@@ -497,11 +505,34 @@ export class Tree {
     }
 
     /**
+     * Updates a node's Character-Data-tab effect (what happens to the
+     * sheet when this node is activated). If the node is currently
+     * active, its old effect's contribution is removed and the new
+     * one applied immediately, so the sheet never drifts out of sync
+     * with a definition change made mid-session.
+     *
+     * @param {string} nodeId
+     * @param {{type:string, key:string, amount:number}|null} effect
+     * @returns {boolean}
+     */
+    setNodeEffect(nodeId, effect) {
+        const node = this.resolveNode(nodeId);
+        if (!node) return false;
+
+        if (node.nodeActive) removeNodeEffect(node); // clear old contribution first
+        node.effect = effect || null;
+        if (node.nodeActive) applyNodeEffect(node);  // reapply under the new definition
+
+        return true;
+    }
+
+    /**
      * Deletes a node entirely: removes its meshes (hit-sphere, star,
      * label, and any arcs touching it) from the scene, scrubs every
      * OTHER node's `requires` of any reference to it (a dangling
      * reference would otherwise crash the next areReqsMet() call),
      * removes it from its mutual-exclusion group's members if any,
+     * removes its character-sheet contribution if it was active,
      * rebuilds nodeIDs (indices shift after the splice), and redraws
      * arcs.
      *
@@ -518,6 +549,8 @@ export class Tree {
         const idx  = this.nodeIDs[id];
         const node = this.nodes[idx];
         if (!node) return false;
+
+        if (node.nodeActive) removeNodeEffect(node);
 
         AppState.scene.remove(node);       // TreeNode itself is the hit-sphere mesh
         AppState.scene.remove(node.star);
@@ -658,7 +691,8 @@ export class Tree {
              const node = new TreeNode(
                  String(nodeData.id), nodeData.name, nodeData.desc, nodeData.hoverText,
                  x, y, z, fiRad, thRad,
-                 nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature
+                 nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature,
+                 nodeData.effect || null
              );
 
              tree.nodes.push(node);

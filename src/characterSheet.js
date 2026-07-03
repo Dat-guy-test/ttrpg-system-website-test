@@ -2,22 +2,21 @@
 // CHARACTER SHEET  (Character Data tab)
 //
 // Builds the whole sheet into an existing #characterPage element
-// and wires up every input. Same approach as editMode.js: one
-// initCharacterSheet() call builds static structure, event
-// delegation handles the rest, small renderX() helpers patch just
-// the piece of DOM that changed.
+// and wires up every editable input. Same approach as editMode.js:
+// one initCharacterSheet() call builds static structure, event
+// delegation handles the rest.
+//
+// Editable by the player: Nazwa, Potencjał, resource "current"
+// values, damage table, proficiencies, motywacja checkboxes.
+// Everything else (Charakterystyki, Umiejętności, resource maxima)
+// is perk-only — displayed read-only here, see characterState.js.
 //
 // Exports:
-//   initCharacterSheet()  — call once, after #characterPage exists
-//                            in the DOM (e.g. from main.js, the
-//                            same place initEditMode() is called).
-//   refreshCharacterSheet() — full re-render; call this if external
-//                            code (a future perk system) mutates
-//                            CharacterState in bulk.
-//
-// This module only imports characterState.js — no dependency on
-// AppState/Tree/etc — so the character tab is completely decoupled
-// from the 3D scene and skill-tree code.
+//   initCharacterSheet()    — call once, after #characterPage exists.
+//   refreshCharacterSheet() — full re-render; called by perkEffects.js
+//                             whenever a perk's contribution changes,
+//                             and safe to call any other time
+//                             CharacterState changes in bulk.
 // ============================================================
 
 import {
@@ -26,10 +25,10 @@ import {
     resetCharacterState,
     computeStatValue,
     computeDamageTotal,
+    formatImprovisation,
     CHARACTERISTICS_CONFIG,
     ABILITIES_CONFIG,
     DAMAGE_ROWS_CONFIG,
-    MOTYWACJA_COUNT,
 } from './characterState.js';
 
 let rootEl = null;
@@ -66,8 +65,8 @@ function render() {
             ${renderHeader()}
             ${renderResources()}
             ${renderDamageTable()}
-            ${renderStatGrid('Charakterystyki', 'characteristics', CHARACTERISTICS_CONFIG, 'charStatGrid')}
-            ${renderStatGrid('Umiejętności', 'abilities', ABILITIES_CONFIG, 'charStatGrid charStatGrid-abilities')}
+            ${renderCharacteristicsSection()}
+            ${renderAbilitiesSection()}
             ${renderProficienciesSection()}
             ${renderMotywacjaSection()}
             ${renderPerksSection()}
@@ -112,20 +111,24 @@ function renderResources() {
                 ${renderResourceBox('Punkty Energii', 'energyPoints', energyPoints, true)}
                 ${renderResourceBox('Wytrzymałość', 'endurance', endurance, false)}
             </div>
+            <p class="charSection-hint">Maksimum ustala System Perków. Wartość bieżącą śledzisz ręcznie podczas gry.</p>
         </section>
     `;
 }
 
+/** Current is player-editable (spent during play); Max is perk-only. */
 function renderResourceBox(label, key, value, hasCurrent) {
+    const max = computeStatValue(value.max);
+    const maxTitle = max.isModified ? escapeHtml(modifierBreakdown(max.modifiers)) : '';
     return `
         <div class="statWrapper charResourceBox">
             <div class="statLabel">${escapeHtml(label)}</div>
             <div class="statValue charResourceBox-value">
                 ${hasCurrent ? `
-                    <input type="number" class="charResource-input" data-resource="${key}" data-field="current" value="${value.current}" />
+                    <input type="number" class="charResource-input" data-resource="${key}" value="${value.current}" />
                     <span class="charResourceBox-slash">/</span>
                 ` : ''}
-                <input type="number" class="charResource-input" data-resource="${key}" data-field="max" value="${value.max}" />
+                <span class="charStat-readonly charResourceBox-max" ${maxTitle ? `title="${maxTitle}"` : ''}>${max.value}</span>
             </div>
         </div>
     `;
@@ -162,26 +165,16 @@ function renderDamageTable() {
     `;
 }
 
-/**
- * Renders a grid of perk-editable stat fields (Charakterystyki or
- * Umiejętności). Each field shows an editable "base" input; if the
- * (future) perk system has added modifiers to that field, a small
- * badge with the effective total appears next to it — invisible
- * until modifiers actually exist, so nothing changes visually today.
- */
-function renderStatGrid(title, group, config, gridClass) {
-    const fields = config.map(cfg => {
-        const field = CharacterState[group][cfg.key];
-        const { value, isModified, modifiers } = computeStatValue(field);
-        const badge = isModified
-            ? `<span class="charStat-badge" title="${escapeHtml(modifierBreakdown(modifiers))}">${value}</span>`
-            : '';
+/** Charakterystyki — single perk-only value per stat, read-only. */
+function renderCharacteristicsSection() {
+    const fields = CHARACTERISTICS_CONFIG.map(cfg => {
+        const { value, isModified, modifiers } = computeStatValue(CharacterState.characteristics[cfg.key]);
+        const title = isModified ? escapeHtml(modifierBreakdown(modifiers)) : '';
         return `
             <div class="statWrapper charStatField">
                 <div class="statLabel">${escapeHtml(cfg.label)}</div>
                 <div class="statValue charStatField-value">
-                    <input type="number" class="charStat-baseInput" data-group="${group}" data-key="${cfg.key}" value="${field.base}" />
-                    ${badge}
+                    <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${value}</span>
                 </div>
             </div>
         `;
@@ -189,14 +182,48 @@ function renderStatGrid(title, group, config, gridClass) {
 
     return `
         <section class="charSection">
-            <h2 class="charSection-title">${escapeHtml(title)}</h2>
-            <div class="${gridClass}">${fields}</div>
+            <h2 class="charSection-title">Charakterystyki</h2>
+            <div class="charStatGrid">${fields}</div>
         </section>
     `;
 }
 
-function modifierBreakdown(modifiers) {
-    return modifiers.map(m => `${m.label || m.sourceId}: ${m.amount > 0 ? '+' : ''}${m.amount}`).join('\n');
+/**
+ * Umiejętności — each ability has two independent perk-only tracks:
+ *   Doświadczenie (Experience) — a plain number
+ *   Improwizacja (Improvisation) — a 1-6 level, shown as its die (+1d4 … +1d20)
+ */
+function renderAbilitiesSection() {
+    const fields = ABILITIES_CONFIG.map(cfg => {
+        const ability = CharacterState.abilities[cfg.key];
+        const exp    = computeStatValue(ability.experience);
+        const improv = computeStatValue(ability.improvisation);
+        const expTitle    = exp.isModified    ? escapeHtml(modifierBreakdown(exp.modifiers))    : '';
+        const improvTitle = improv.isModified ? escapeHtml(modifierBreakdown(improv.modifiers)) : '';
+
+        return `
+            <div class="statWrapper charStatField charStatField-ability">
+                <div class="statLabel">${escapeHtml(cfg.label)}</div>
+                <div class="statValue charStatField-value charStatField-value-ability">
+                    <div class="charAbility-sub">
+                        <span class="charAbility-subLabel">Dośw.</span>
+                        <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
+                    </div>
+                    <div class="charAbility-sub">
+                        <span class="charAbility-subLabel">Improw.</span>
+                        <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <section class="charSection">
+            <h2 class="charSection-title">Umiejętności</h2>
+            <div class="charStatGrid charStatGrid-abilities">${fields}</div>
+        </section>
+    `;
 }
 
 function renderProficienciesSection() {
@@ -245,18 +272,21 @@ function renderPerksSection() {
         <section class="charSection">
             <h2 class="charSection-title">Wybrane Perki</h2>
             <div id="char-perks-list">${renderPerksList()}</div>
-            <p class="charSection-hint">Ta lista będzie uzupełniana automatycznie przez system perków.</p>
         </section>
     `;
 }
 
 function renderPerksList() {
     if (CharacterState.perksTaken.length === 0) {
-        return '<p class="charSection-hint">Brak wybranych perków.</p>';
+        return '<p class="charSection-hint">Brak wybranych perków — aktywuj węzły w drzewku umiejętności.</p>';
     }
     return '<ul class="charListRows">' + CharacterState.perksTaken.map(p => `
         <li class="charListRow"><span>${escapeHtml(p.name)}</span></li>
     `).join('') + '</ul>';
+}
+
+function modifierBreakdown(modifiers) {
+    return modifiers.map(m => `${m.label || m.sourceId}: ${m.amount > 0 ? '+' : ''}${m.amount}`).join('\n');
 }
 
 
@@ -286,11 +316,11 @@ function attachHandlers() {
         saveCharacterState();
     });
 
-    // ---- Resources ---- (event delegation: one listener for all resource inputs)
+    // ---- Resources ("current" only — "max" is perk-only, not editable) ----
     rootEl.querySelectorAll('.charResource-input').forEach((input) => {
         input.addEventListener('input', (e) => {
-            const { resource, field } = e.target.dataset;
-            CharacterState.resources[resource][field] = Number(e.target.value) || 0;
+            const { resource } = e.target.dataset;
+            CharacterState.resources[resource].current = Number(e.target.value) || 0;
             saveCharacterState();
         });
     });
@@ -302,19 +332,6 @@ function attachHandlers() {
             CharacterState.damage[dmgRow][dmgCol] = Number(e.target.value) || 0;
             saveCharacterState();
             rootEl.querySelector('#char-dmg-total').textContent = computeDamageTotal();
-        });
-    });
-
-    // ---- Characteristics / Abilities base values ----
-    rootEl.querySelectorAll('.charStat-baseInput').forEach((input) => {
-        input.addEventListener('input', (e) => {
-            const { group, key } = e.target.dataset;
-            CharacterState[group][key].base = Number(e.target.value) || 0;
-            saveCharacterState();
-            // NOTE: the effective-value badge only appears once modifiers exist
-            // (see renderStatGrid). Editing base doesn't need a re-render here —
-            // once the perk system is wired, call refreshCharacterSheet() after
-            // any perk activation/deactivation to keep badges in sync.
         });
     });
 

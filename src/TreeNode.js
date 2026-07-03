@@ -23,6 +23,13 @@
 // `exclStuff` (stored as `this.excl`) is either null or a shared
 // group object { label, max, members }, built once in Tree's
 // treeGen() and referenced by every member node.
+//
+// `effect` (stored as `this.effect`) is either null or
+// { type, key, amount } describing what this node does to the
+// Character Data tab when active — see perkEffects.js and
+// characterState.js's EFFECT_TYPES for the available types.
+// applyNodeEffect()/removeNodeEffect() are called from onClick()
+// below, on activation/deactivation respectively.
 // ============================================================
 
 import * as THREE from 'three';
@@ -32,6 +39,7 @@ import { BLOOM_LAYER } from './constants.js';
 import { StarModel } from './StarModel.js';
 import { computePanCamera } from './cameraControls.js';
 import { handleEditModeNodeClick } from './editMode.js';
+import { applyNodeEffect, removeNodeEffect } from './perkEffects.js';
 
 
 export class TreeNode extends THREE.Mesh {
@@ -47,10 +55,11 @@ export class TreeNode extends THREE.Mesh {
      * @param {number}        anodeCost
      * @param {{label:string,max:number,members:string[]}|null} exclStuff — shared mutual-exclusion group, or null
      * @param {number}        temperature       — blackbody colour temp in Kelvin
+     * @param {{type:string,key:string,amount:number}|null} effect — Character Data tab effect, or null
      */
     constructor(anodeId, anodeName, anodeDesc, ahoverText,
                 posX, posY, posZ, afi, atheta,
-                requires, anodeCost, exclStuff, temperature) {
+                requires, anodeCost, exclStuff, temperature, effect) {
         super();
 
         this.temperature = temperature;
@@ -63,7 +72,8 @@ export class TreeNode extends THREE.Mesh {
         ? 0.05
         : 0.05 * ((anodeCost) ^ (1 / 3)); // ^ is bitwise XOR — original behaviour preserved
 
-        this.excl  = exclStuff || null;
+        this.excl   = exclStuff || null;
+        this.effect = effect    || null;
         this.fi    = -afi;    // negated: positive fi in data → expected visual direction
         this.theta = atheta;
 
@@ -244,12 +254,14 @@ export class TreeNode extends THREE.Mesh {
                     }
 
                     if (this.nodeActive && !isNextActive(this.nodeId)) {
-                        // Deactivate — refund cost, restore invisible material
+                        // Deactivate — refund cost, restore invisible material,
+                        // and remove this node's contribution to the character sheet.
                         this.nodeActive   = false;
                         AppState.perkPoints += Number(this.nodeCost);
                         this.star.material = new THREE.MeshBasicMaterial({
                             color: 0x000000, opacity: 0.0, transparent: true, depthWrite: false,
                         });
+                        removeNodeEffect(this);
 
                     } else if (
                         AppState.perkPoints >= this.nodeCost &&
@@ -257,10 +269,12 @@ export class TreeNode extends THREE.Mesh {
                         isMutExclCritMet(this.nodeId) &&
                         !this.nodeActive
                     ) {
-                        // Activate — spend cost, apply lava-shader material
+                        // Activate — spend cost, apply lava-shader material,
+                        // and apply this node's effect (if any) to the character sheet.
                         this.nodeActive    = true;
                         AppState.perkPoints -= Number(this.nodeCost);
                         this.star.material  = AppState.starClasses[this.starID].customMaterial;
+                        applyNodeEffect(this);
                     }
 
                     document.getElementById('perkPoints').textContent = AppState.perkPoints;
@@ -344,6 +358,7 @@ export class TreeNode extends THREE.Mesh {
                         cost:        this.nodeCost,
                         temperature: this.temperature,
                         exclGroup:   this.excl ? this.excl.label : null,
+                        effect:      this.effect,
                     };
                 }
      }

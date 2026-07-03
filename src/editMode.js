@@ -18,15 +18,18 @@
 //   handleEditModeConnectionClick(tree, ownerIndex, reqIndex)
 //                                    — called from Tree.js's arc click handlers.
 //
-// This module only imports AppState — no local imports back into
-// Tree.js / TreeNode.js — so both are free to import THIS module
-// without creating a circular import.
+// This module only imports AppState and characterState.js (for the
+// effect-type config) — no local imports back into Tree.js /
+// TreeNode.js — so both are free to import THIS module without
+// creating a circular import.
 //
 // Still out of scope (later steps): deleting nodes, editing the
-// mutual-exclusion group a node belongs to.
+// mutual-exclusion group a node belongs to (this one's actually done
+// — see below).
 // ============================================================
 
 import AppState from './appState.js';
+import { EFFECT_TYPES } from './characterState.js';
 
 
 let panelEl  = null;
@@ -245,7 +248,76 @@ function renderInspector() {
 
 
 // ============================================================
-// Existing-node form (properties + requirements)
+// Effect fields — shared markup/wiring for both forms below
+// ============================================================
+
+/** Options for the "target" dropdown, given a chosen effect type. */
+function effectFieldOptions(type) {
+    const cfg = EFFECT_TYPES.find(e => e.value === type);
+    return cfg ? cfg.options : [];
+}
+
+/** Rebuilds a "target" <select>'s options for the given effect type, preserving selectedKey if possible. */
+function populateEffectKeyOptions(selectEl, type, selectedKey) {
+    const options = effectFieldOptions(type);
+    selectEl.innerHTML = options.map(o => `
+        <option value="${escapeHtml(o.key)}" ${o.key === selectedKey ? 'selected' : ''}>${escapeHtml(o.label)}</option>
+    `).join('');
+    selectEl.disabled = options.length === 0;
+}
+
+/** Markup for the effect-type / target / amount trio, shared by both forms below. */
+function effectFieldsTemplate(idPrefix, currentEffect) {
+    return `
+        <label class="editor-label" for="${idPrefix}-effect-type">Efekt perku (wpływ na arkusz postaci)</label>
+        <select id="${idPrefix}-effect-type">
+            <option value="">Brak</option>
+            ${EFFECT_TYPES.map(t => `
+                <option value="${t.value}" ${currentEffect && currentEffect.type === t.value ? 'selected' : ''}>${escapeHtml(t.label)}</option>
+            `).join('')}
+        </select>
+        <div class="editor-row">
+            <div>
+                <label class="editor-label" for="${idPrefix}-effect-key">Cel</label>
+                <select id="${idPrefix}-effect-key"></select>
+            </div>
+            <div>
+                <label class="editor-label" for="${idPrefix}-effect-amount">Ilość</label>
+                <input id="${idPrefix}-effect-amount" type="number" step="1" value="${currentEffect ? currentEffect.amount : 1}" />
+            </div>
+        </div>
+        <div class="editor-hint">Wybierz „Brak”, jeśli ten węzeł nie ma wpływać na arkusz postaci.</div>
+    `;
+}
+
+/** Wires the type→key cascade for a trio built with effectFieldsTemplate(). Call once after inserting the markup. */
+function wireEffectFields(idPrefix, currentEffect) {
+    const typeSelect = bodyEl.querySelector(`#${idPrefix}-effect-type`);
+    const keySelect   = bodyEl.querySelector(`#${idPrefix}-effect-key`);
+
+    populateEffectKeyOptions(keySelect, currentEffect ? currentEffect.type : '', currentEffect ? currentEffect.key : null);
+    typeSelect.addEventListener('change', () => {
+        populateEffectKeyOptions(keySelect, typeSelect.value, null);
+    });
+}
+
+/** Reads the type/key/amount trio back into an effect object, or null. Returns undefined (and sets a status error) if invalid. */
+function readEffectFields(idPrefix) {
+    const type   = bodyEl.querySelector(`#${idPrefix}-effect-type`).value;
+    const key    = bodyEl.querySelector(`#${idPrefix}-effect-key`).value;
+    const amount = Number(bodyEl.querySelector(`#${idPrefix}-effect-amount`).value);
+
+    if (!type) return null; // "Brak" — no effect
+
+    if (!key) { setStatus('Wybierz cel efektu perku.', true); return undefined; }
+    if (!Number.isFinite(amount) || amount === 0) { setStatus('Efekt perku wymaga niezerowej wartości „Ilość”.', true); return undefined; }
+
+    return { type, key, amount };
+}
+
+
+// ============================================================
+// Existing-node form (properties + requirements + effect)
 // ============================================================
 function renderExistingNodeForm(node) {
     const fiDeg    = -node.fi * 180 / Math.PI;
@@ -310,6 +382,8 @@ function renderExistingNodeForm(node) {
         </div>
         <div class="editor-hint">Tip: you can also switch to Connect mode and click nodes directly.</div>
 
+        ${effectFieldsTemplate('ed', node.effect)}
+
         <label class="editor-label" for="ed-exclgroup">Mutual-exclusion group</label>
         <select id="ed-exclgroup">
             <option value="">None</option>
@@ -336,6 +410,8 @@ function renderExistingNodeForm(node) {
             <span class="editor-label">Active</span><span>${node.nodeActive ? 'Yes' : 'No'}</span>
         </div>
     `;
+
+    wireEffectFields('ed', node.effect);
 
     const exclSelect  = bodyEl.querySelector('#ed-exclgroup');
     const newGroupWrap = bodyEl.querySelector('#ed-newgroup-wrap');
@@ -382,6 +458,9 @@ function saveNode(node) {
     if (!Number.isFinite(temp) || temp <= 0) { setStatus('Temperature must be a positive number.', true); return; }
     if (!Number.isFinite(fiDeg) || !Number.isFinite(thDeg)) { setStatus('Fi/theta must be numbers.', true); return; }
 
+    const effect = readEffectFields('ed');
+    if (effect === undefined) return; // readEffectFields already set an error status
+
     let groupLabel = null;
     if (exclSelectVal === '__new__') {
         if (!newGroupLabel) { setStatus('New group needs a label.', true); return; }
@@ -399,6 +478,7 @@ function saveNode(node) {
     node.nodeCost    = cost;
     node.temperature = temp; // doesn't re-tint the already-loaded star texture — cosmetic only on export
 
+    AppState.tr.setNodeEffect(node.nodeId, effect);
     AppState.tr.setNodeExclGroup(node.nodeId, groupLabel, groupLabel ? exclMax : undefined);
 
     const moved = fiDeg !== (-node.fi * 180 / Math.PI) || thDeg !== (node.theta * 180 / Math.PI);
@@ -458,9 +538,13 @@ function renderNewNodeForm(fiDeg, thetaDeg) {
             </div>
         </div>
 
+        ${effectFieldsTemplate('new', null)}
+
         <button class="editor-btn editor-save-btn" id="new-create">Create Node</button>
         <button class="editor-btn" id="new-cancel">Cancel</button>
     `;
+
+    wireEffectFields('new', null);
 
     bodyEl.querySelector('#new-create').addEventListener('click', () => createNodeFromForm(fiDeg, thetaDeg));
     bodyEl.querySelector('#new-cancel').addEventListener('click', () => {
@@ -482,8 +566,11 @@ function createNodeFromForm(fiDeg, thetaDeg) {
     if (!Number.isFinite(cost) || cost < 0) { setStatus('Cost must be a non-negative number.', true); return; }
     if (!Number.isFinite(temp) || temp <= 0) { setStatus('Temperature must be a positive number.', true); return; }
 
+    const effect = readEffectFields('new');
+    if (effect === undefined) return; // readEffectFields already set an error status
+
     const node = AppState.tr.addNode({
-        id, name, desc, hoverText: hover, cost, temperature: temp, fi: fiDeg, theta: thetaDeg,
+        id, name, desc, hoverText: hover, cost, temperature: temp, fi: fiDeg, theta: thetaDeg, effect,
     });
     if (!node) { setStatus(`Couldn't create node — id "${id}" is already taken.`, true); return; }
 
