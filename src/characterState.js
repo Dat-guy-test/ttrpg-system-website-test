@@ -33,50 +33,50 @@ const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable 
 
 export const CHARACTERISTICS_CONFIG = [
     { key: 'forma',    label: 'Forma' },
-    { key: 'bystrosc', label: 'Bystrość' },
-    { key: 'silaWoli', label: 'Siła Woli' },
-    { key: 'szybkosc', label: 'Szybkość' },
-    { key: 'udzwig',   label: 'Udźwig' },
+{ key: 'bystrosc', label: 'Bystrość' },
+{ key: 'silaWoli', label: 'Siła Woli' },
+{ key: 'szybkosc', label: 'Szybkość' },
+{ key: 'udzwig',   label: 'Udźwig' },
 ];
 
 export const ABILITIES_CONFIG = [
     { key: 'sila',              label: 'Siła' },
-    { key: 'wigor',              label: 'Wigor' },
-    { key: 'czasReakcji',        label: 'Czas Reakcji' },
-    { key: 'determinacja',       label: 'Determinacja' },
-    { key: 'charyzma',           label: 'Charyzma' },
-    { key: 'skradanieSie',       label: 'Skradanie się' },
-    { key: 'zrecznosc',          label: 'Zręczność' },
-    { key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
-    { key: 'instynkt',           label: 'Instynkt' },
-    { key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
-    { key: 'alchemia',           label: 'Alchemia' },
-    { key: 'inzynieria',         label: 'Inżynieria' },
-    { key: 'majsterkowanie',     label: 'Majsterkowanie' },
-    { key: 'metalurgia',         label: 'Metalurgia' },
-    { key: 'zaklinanie',         label: 'Zaklinanie' },
-    { key: 'badawczosc',         label: 'Badawczość' },
-    { key: 'uczenieSie',         label: 'Uczenie się' },
-    { key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
-    { key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
-    { key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
-    { key: 'kreacja',            label: 'Kreacja' },
-    { key: 'projekcja',          label: 'Projekcja' },
-    { key: 'transmutacja',       label: 'Transmutacja' },
-    { key: 'przywolywanie',      label: 'Przywoływanie' },
-    { key: 'destrukcja',         label: 'Destrukcja' },
+{ key: 'wigor',              label: 'Wigor' },
+{ key: 'czasReakcji',        label: 'Czas Reakcji' },
+{ key: 'determinacja',       label: 'Determinacja' },
+{ key: 'charyzma',           label: 'Charyzma' },
+{ key: 'skradanieSie',       label: 'Skradanie się' },
+{ key: 'zrecznosc',          label: 'Zręczność' },
+{ key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
+{ key: 'instynkt',           label: 'Instynkt' },
+{ key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
+{ key: 'alchemia',           label: 'Alchemia' },
+{ key: 'inzynieria',         label: 'Inżynieria' },
+{ key: 'majsterkowanie',     label: 'Majsterkowanie' },
+{ key: 'metalurgia',         label: 'Metalurgia' },
+{ key: 'zaklinanie',         label: 'Zaklinanie' },
+{ key: 'badawczosc',         label: 'Badawczość' },
+{ key: 'uczenieSie',         label: 'Uczenie się' },
+{ key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
+{ key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
+{ key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
+{ key: 'kreacja',            label: 'Kreacja' },
+{ key: 'projekcja',          label: 'Projekcja' },
+{ key: 'transmutacja',       label: 'Transmutacja' },
+{ key: 'przywolywanie',      label: 'Przywoływanie' },
+{ key: 'destrukcja',         label: 'Destrukcja' },
 ];
 
 // Rows 2-7 (critical: true) get highlighted; "Zwyk." (critical: false)
 // does not. "Łącznie" is a single computed field, handled separately.
 export const DAMAGE_ROWS_CONFIG = [
     { key: 'rany',        label: 'Rany',   critical: true  },
-    { key: 'zlamania',    label: 'Złam.',  critical: true  },
-    { key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
-    { key: 'temperatura', label: 'Temp.',  critical: true  },
-    { key: 'choroby',     label: 'Chor.',  critical: true  },
-    { key: 'krytyczne',   label: 'Kryt.',  critical: true  },
-    { key: 'zwykle',      label: 'Zwyk.',  critical: false },
+{ key: 'zlamania',    label: 'Złam.',  critical: true  },
+{ key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
+{ key: 'temperatura', label: 'Temp.',  critical: true  },
+{ key: 'choroby',     label: 'Chor.',  critical: true  },
+{ key: 'krytyczne',   label: 'Kryt.',  critical: true  },
+{ key: 'zwykle',      label: 'Zwyk.',  critical: false },
 ];
 
 export const MOTYWACJA_COUNT = 5;
@@ -105,18 +105,18 @@ export const EFFECT_TYPES = [
         options: CHARACTERISTICS_CONFIG,
         fieldPath: (key) => `characteristics.${key}`,
     },
-    {
-        value: 'skillExperience',
-        label: 'Zwiększ Doświadczenie Umiejętności',
-        options: ABILITIES_CONFIG,
-        fieldPath: (key) => `abilities.${key}.experience`,
-    },
-    {
-        value: 'skillImprovisation',
-        label: 'Zwiększ Poziom Improwizacji',
-        options: ABILITIES_CONFIG,
-        fieldPath: (key) => `abilities.${key}.improvisation`,
-    },
+{
+    value: 'skillExperience',
+    label: 'Zwiększ Doświadczenie Umiejętności',
+    options: ABILITIES_CONFIG,
+    fieldPath: (key) => `abilities.${key}.experience`,
+},
+{
+    value: 'skillImprovisation',
+    label: 'Zwiększ Poziom Improwizacji',
+    options: ABILITIES_CONFIG,
+    fieldPath: (key) => `abilities.${key}.improvisation`,
+},
 ];
 
 
@@ -134,7 +134,7 @@ function buildDefaultState() {
     for (const a of ABILITIES_CONFIG) {
         abilities[a.key] = {
             experience:    makeStatField(0),
-            improvisation: makeStatField(1),
+            improvisation: makeStatField(1), // level 1 = +1d4, see IMPROVISATION_DICE
         };
     }
 
