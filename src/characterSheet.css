@@ -1,0 +1,258 @@
+/* ============================================================
+   CHARACTER SHEET  (Character Data tab)
+   Reuses .statWrapper/.statLabel/.statValue from style.css so the
+   resource boxes and stat fields match the visual language already
+   established there; everything else is new.
+   ============================================================ */
+
+.charSheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 56em;
+  margin: 0 auto;
+  padding: 1.5em 2em 3em;
+  font-family: sans-serif;
+  color: #2c2c2a;
+}
+
+.charSheet-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75em;
+  margin-bottom: 1em;
+}
+
+.charBtn {
+  background-color: rgb(187, 128, 241);
+  color: #ffffff;
+  border: 1px solid rgb(146, 92, 199);
+  border-radius: 0.4em;
+  padding: 0.5em 1em;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.charBtn:hover { background-color: rgb(166, 104, 224); }
+.charBtn-danger { background-color: #a0455a; border-color: #7a2f3f; }
+.charBtn-danger:hover { background-color: #b85468; }
+.charBtn-small { padding: 0.15em 0.5em; font-size: 0.85em; }
+
+/* ---- Header --------------------------------------------------- */
+.charHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em;
+  align-items: flex-end;
+  padding: 1em 1.25em;
+  margin-bottom: 1.5em;
+}
+
+.charField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+.charField-name { flex: 1 1 16em; min-width: 12em; }
+
+.charField-label {
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6a6a66;
+}
+
+.charField input,
+.charSheet input[type="text"],
+.charSheet input[type="number"] {
+  box-sizing: border-box;
+  border: 1px solid rgb(187, 128, 241);
+  border-radius: 0.3em;
+  padding: 0.4em 0.6em;
+  font-size: 1em;
+  font-family: inherit;
+}
+.charField-name input { font-size: 1.2em; font-weight: 600; }
+
+/* ---- Generic section wrapper ----------------------------------- */
+.charSection {
+  margin-bottom: 2em;
+}
+
+.charSection-title {
+  font-size: 1.1em;
+  margin: 0 0 0.75em;
+  padding-bottom: 0.3em;
+  border-bottom: 0.15em solid rgb(187, 128, 241);
+}
+
+.charSection-hint {
+  font-size: 0.85em;
+  color: #7a7a76;
+  font-style: italic;
+  margin: 0.5em 0 0;
+}
+
+.charSection-addRow {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 0.75em;
+}
+.charSection-addRow input { flex: 1; }
+
+/* ---- Resources --------------------------------------------------- */
+.charResourceGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+
+.charResourceBox { width: 12em; }
+
+.charResourceBox-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+}
+.charResourceBox-value input {
+  width: 3.5em;
+  text-align: center;
+  border-color: transparent;
+  background: transparent;
+}
+.charResourceBox-slash { color: #9a9a94; }
+
+/* ---- Damage table -------------------------------------------------- */
+.dmgTable {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 30em;
+}
+.dmgTable th, .dmgTable td {
+  border: 1px solid #cfcfc8;
+  padding: 0.35em 0.6em;
+  text-align: center;
+}
+.dmgTable th { background-color: #f1eee8; font-weight: 600; font-size: 0.85em; }
+.dmgTable .dmgTable-rowLabel { text-align: left; font-weight: 600; }
+.dmgTable-input {
+  width: 3.5em;
+  text-align: center;
+  border: none;
+  background: transparent;
+}
+.dmgTable-critical { background-color: #f7dede; }
+.dmgTable-critical .dmgTable-rowLabel { color: #7a1f1f; }
+.dmgTable-totalRow { background-color: #f1eee8; font-weight: 600; }
+.dmgTable-totalRow output { font-size: 1.1em; }
+
+/* ---- Stat grids (Charakterystyki / Umiejętności) ---------------------- */
+.charStatGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+  gap: 0.6em;
+}
+.charStatGrid-abilities {
+  grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr));
+}
+
+.charStatField { width: auto; height: auto; }
+.charStatField .statLabel { height: 2.2em; font-size: 0.85em; }
+.charStatField-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  height: 2.6em;
+}
+.charStat-baseInput {
+  width: 3.2em;
+  text-align: center;
+  border-color: transparent;
+  background: transparent;
+  font-size: 1.1em;
+}
+
+/* Effective-value badge — only rendered once perk modifiers exist */
+.charStat-badge {
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 1em;
+  background-color: rgb(232, 172, 255);
+  color: #4a1b5c;
+  cursor: help;
+}
+
+/* ---- Lists (Wprawa / Perki) ------------------------------------------- */
+.charListRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+.charListRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35em 0.6em;
+  border: 1px solid #e2e0d8;
+  border-radius: 0.3em;
+  background-color: #faf9f5;
+}
+
+/* ---- Motywacja ---------------------------------------------------------- */
+.charMotywacja-row {
+  display: flex;
+  gap: 1em;
+}
+.charMotywacja-box {
+  display: inline-flex;
+  cursor: pointer;
+}
+.charMotywacja-box input { display: none; }
+.charMotywacja-box span {
+  width: 1.6em;
+  height: 1.6em;
+  border: 0.15em solid rgb(187, 128, 241);
+  border-radius: 0.3em;
+  display: inline-block;
+}
+.charMotywacja-box input:checked + span {
+  background-color: rgb(187, 128, 241);
+}
+
+/* ============================================================
+   PRINT
+   Hides the 3D scene / tab chrome / editor controls entirely and
+   lets the character sheet flow as normal paginated content.
+   ============================================================ */
+@media print {
+  body * { visibility: hidden; }
+
+  #characterPage, #characterPage * { visibility: visible; }
+
+  #characterPage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    border: none;
+    background: #ffffff;
+  }
+
+  .charSheet { max-width: 100%; padding: 0; color: #000000; }
+  .charSheet-toolbar { display: none; }
+
+  .charField input, .charSheet input[type="text"], .charSheet input[type="number"] {
+    border-color: #999999;
+    color: #000000;
+  }
+
+  .charSection { break-inside: avoid; }
+  .dmgTable, .charStatGrid { break-inside: avoid; }
+
+  .dmgTable-critical { background-color: #eeeeee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -27,6 +27,7 @@
 
 import AppState from './appState.js';
 import { initScene } from './sceneSetup.js';
+import { initCharacterSheet } from './characterSheet.js';
 import { Tree, treeGen } from './Tree.js';
 import {
   panCamera,
@@ -54,7 +55,8 @@ AppState.tr = new Tree(0, 40, 20, 60);
 
 // 3. Build the (hidden) edit-mode inspector panel
 initEditMode();
-
+// 3b. Build the character sheet module
+initCharacterSheet();
 // 4. Attach all DOM event listeners
 registerInputHandlers();
 
