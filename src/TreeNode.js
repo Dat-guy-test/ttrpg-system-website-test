@@ -24,12 +24,13 @@
 // group object { label, max, members }, built once in Tree's
 // treeGen() and referenced by every member node.
 //
-// `effect` (stored as `this.effect`) is either null or
-// { type, key, amount } describing what this node does to the
-// Character Data tab when active — see perkEffects.js and
-// characterState.js's EFFECT_TYPES for the available types.
-// applyNodeEffect()/removeNodeEffect() are called from onClick()
-// below, on activation/deactivation respectively.
+// `effects` (stored as `this.effects`) is an array — possibly empty —
+// of { type, key, amount } entries describing what this node does to
+// the Character Data tab when active. A node can carry any number of
+// effects (e.g. one node granting +1 Forma AND +1 Siła Woli). See
+// perkEffects.js and characterState.js's EFFECT_TYPES for the
+// available types. applyNodeEffect()/removeNodeEffect() are called
+// from onClick() below, on activation/deactivation respectively.
 // ============================================================
 
 import * as THREE from 'three';
@@ -55,11 +56,11 @@ export class TreeNode extends THREE.Mesh {
      * @param {number}        anodeCost
      * @param {{label:string,max:number,members:string[]}|null} exclStuff — shared mutual-exclusion group, or null
      * @param {number}        temperature       — blackbody colour temp in Kelvin
-     * @param {{type:string,key:string,amount:number}|null} effect — Character Data tab effect, or null
+     * @param {{type:string,key:string,amount:number}[]} [effects] — Character Data tab effects; [] or omitted = none
      */
     constructor(anodeId, anodeName, anodeDesc, ahoverText,
                 posX, posY, posZ, afi, atheta,
-                requires, anodeCost, exclStuff, temperature, effect) {
+                requires, anodeCost, exclStuff, temperature, effects) {
         super();
 
         this.temperature = temperature;
@@ -72,8 +73,8 @@ export class TreeNode extends THREE.Mesh {
         ? 0.05
         : 0.05 * ((anodeCost) ^ (1 / 3)); // ^ is bitwise XOR — original behaviour preserved
 
-        this.excl   = exclStuff || null;
-        this.effect = effect    || null;
+        this.excl    = exclStuff || null;
+        this.effects = Array.isArray(effects) ? effects : [];
         this.fi    = -afi;    // negated: positive fi in data → expected visual direction
         this.theta = atheta;
 
@@ -358,7 +359,7 @@ export class TreeNode extends THREE.Mesh {
                         cost:        this.nodeCost,
                         temperature: this.temperature,
                         exclGroup:   this.excl ? this.excl.label : null,
-                        effect:      this.effect,
+                        effects:     this.effects,
                     };
                 }
      }

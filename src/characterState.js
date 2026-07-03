@@ -134,7 +134,7 @@ function buildDefaultState() {
     for (const a of ABILITIES_CONFIG) {
         abilities[a.key] = {
             experience:    makeStatField(0),
-            improvisation: makeStatField(0),
+            improvisation: makeStatField(1), // level 1 = +1d4, see IMPROVISATION_DICE
         };
     }
 

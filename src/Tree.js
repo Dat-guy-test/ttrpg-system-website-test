@@ -29,11 +29,17 @@
 // members of a group are always looking at one shared max/members —
 // convenient once edit-mode code starts mutating groups live.
 //
-// A node's `effect` (optional) is { type, key, amount } describing
-// its contribution to the Character Data tab — see characterState.js's
-// EFFECT_TYPES and perkEffects.js. setNodeEffect() below is the one
-// place that mutates it, so an active node's contribution always
-// stays in sync with its current effect definition.
+// A node's `effects` (optional) is an array of { type, key, amount }
+// entries describing its contribution(s) to the Character Data tab —
+// see characterState.js's EFFECT_TYPES and perkEffects.js. A node can
+// carry any number of effects. addNodeEffect()/removeNodeEffectAt()
+// below are the two places that mutate the list, so an active node's
+// contribution always stays in sync with its current effects.
+//
+// Backward compatibility: nodes.json exported before this array-based
+// format used a single `effect: {...}` object. normalizeEffects()
+// below reads that transparently and wraps it into a one-item array,
+// so older exported files keep working without editing.
 // ============================================================
 
 import * as THREE from 'three';
@@ -44,6 +50,20 @@ import { NODE_DATA_URL } from './constants.js';
 import { handleTreesphereClick, handleEditModeConnectionClick } from './editMode.js';
 import { applyNodeEffect, removeNodeEffect } from './perkEffects.js';
 
+
+/**
+ * Reads a node's effects off either the current array format
+ * (`effects: [...]`) or the older single-object format
+ * (`effect: {...}`), always returning an array. Used by both
+ * treeGen() (loading nodes.json) and addNode() (edit-mode creation).
+ * @param {object} source — a nodeData object or an addNode() data object
+ * @returns {{type:string,key:string,amount:number}[]}
+ */
+function normalizeEffects(source) {
+    if (Array.isArray(source.effects)) return source.effects;
+    if (source.effect) return [source.effect];
+    return [];
+}
 
 export class Tree {
     /**
@@ -427,7 +447,7 @@ export class Tree {
      * form. New nodes start with no requirements — link them up
      * afterward via addRequirement() / connect submode.
      *
-     * @param {object} data - {id?, name, desc, hoverText, cost, temperature, fi, theta, exclGroup?, effect?}
+     * @param {object} data - {id?, name, desc, hoverText, cost, temperature, fi, theta, exclGroup?, effects?}
      *   id is auto-generated (AppState.nextCustomNodeId) if omitted.
      *   fi/theta are in DEGREES.
      * @returns {TreeNode|null} the new node, or null if `id` was already taken
@@ -458,7 +478,7 @@ export class Tree {
             id, data.name || 'New Node', data.desc || '', data.hoverText || '',
             x, y, z, fiRad, thRad,
             [], data.cost || 0, exclGroup, data.temperature || 6000,
-            data.effect || null
+            normalizeEffects(data)
         );
 
         this.nodeIDs[id] = this.nodes.length;
@@ -505,23 +525,43 @@ export class Tree {
     }
 
     /**
-     * Updates a node's Character-Data-tab effect (what happens to the
-     * sheet when this node is activated). If the node is currently
-     * active, its old effect's contribution is removed and the new
-     * one applied immediately, so the sheet never drifts out of sync
-     * with a definition change made mid-session.
+     * Appends one effect to a node's `effects` list — e.g. a second
+     * characteristic bump on top of one it already grants. Mirrors
+     * addRequirement()'s live-edit pattern: applied immediately, no
+     * separate "Save" step. If the node is currently active, its
+     * existing contribution is removed first and the whole (now
+     * longer) effects list is reapplied, so nothing double-counts.
      *
      * @param {string} nodeId
-     * @param {{type:string, key:string, amount:number}|null} effect
+     * @param {{type:string, key:string, amount:number}} effect
      * @returns {boolean}
      */
-    setNodeEffect(nodeId, effect) {
+    addNodeEffect(nodeId, effect) {
         const node = this.resolveNode(nodeId);
         if (!node) return false;
 
-        if (node.nodeActive) removeNodeEffect(node); // clear old contribution first
-        node.effect = effect || null;
-        if (node.nodeActive) applyNodeEffect(node);  // reapply under the new definition
+        if (node.nodeActive) removeNodeEffect(node);
+        node.effects = [...node.effects, effect];
+        if (node.nodeActive) applyNodeEffect(node);
+
+        return true;
+    }
+
+    /**
+     * Removes one effect (by index into `effects`) from a node. Same
+     * live-edit pattern as removeRequirement().
+     *
+     * @param {string} nodeId
+     * @param {number} effectIndex
+     * @returns {boolean}
+     */
+    removeNodeEffectAt(nodeId, effectIndex) {
+        const node = this.resolveNode(nodeId);
+        if (!node || node.effects[effectIndex] === undefined) return false;
+
+        if (node.nodeActive) removeNodeEffect(node);
+        node.effects = node.effects.filter((_, i) => i !== effectIndex);
+        if (node.nodeActive) applyNodeEffect(node);
 
         return true;
     }
@@ -692,7 +732,7 @@ export class Tree {
                  String(nodeData.id), nodeData.name, nodeData.desc, nodeData.hoverText,
                  x, y, z, fiRad, thRad,
                  nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature,
-                 nodeData.effect || null
+                 normalizeEffects(nodeData)
              );
 
              tree.nodes.push(node);

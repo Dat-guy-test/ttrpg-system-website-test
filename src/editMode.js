@@ -248,7 +248,11 @@ function renderInspector() {
 
 
 // ============================================================
-// Effect fields — shared markup/wiring for both forms below
+// Effect list — a node can carry any number of effects. Both forms
+// below show the current list (with a ✕ per entry) plus a small
+// "add one more" mini-form. Adding/removing is applied immediately
+// (same live-edit pattern as Requirements) rather than staged behind
+// the node's "Save Changes" button.
 // ============================================================
 
 /** Options for the "target" dropdown, given a chosen effect type. */
@@ -266,53 +270,68 @@ function populateEffectKeyOptions(selectEl, type, selectedKey) {
     selectEl.disabled = options.length === 0;
 }
 
-/** Markup for the effect-type / target / amount trio, shared by both forms below. */
-function effectFieldsTemplate(idPrefix, currentEffect) {
+/** Renders the current effects list as removable rows (reuses the Requirements row styling). */
+function renderEffectsList(effects) {
+    if (!effects || effects.length === 0) return '<em>Brak efektów.</em>';
+    return effects.map((eff, i) => {
+        const def = EFFECT_TYPES.find(e => e.value === eff.type);
+        const defLabel    = def ? def.label : eff.type;
+        const targetLabel = def ? ((def.options.find(o => o.key === eff.key) || {}).label || eff.key) : eff.key;
+        const sign = eff.amount > 0 ? '+' : '';
+        return `
+            <div class="editor-req-row">
+                <span>${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: ${sign}${eff.amount}</span>
+                <button class="editor-btn editor-btn-small" data-remove-effect="${i}">✕</button>
+            </div>
+        `;
+    }).join('');
+}
+
+/** Markup for the "add one more effect" mini-form: type / target / amount + a button. */
+function addEffectFormTemplate(idPrefix) {
     return `
-        <label class="editor-label" for="${idPrefix}-effect-type">Efekt perku (wpływ na arkusz postaci)</label>
-        <select id="${idPrefix}-effect-type">
-            <option value="">Brak</option>
-            ${EFFECT_TYPES.map(t => `
-                <option value="${t.value}" ${currentEffect && currentEffect.type === t.value ? 'selected' : ''}>${escapeHtml(t.label)}</option>
-            `).join('')}
-        </select>
         <div class="editor-row">
             <div>
-                <label class="editor-label" for="${idPrefix}-effect-key">Cel</label>
-                <select id="${idPrefix}-effect-key"></select>
+                <select id="${idPrefix}-add-effect-type">
+                    <option value="">Wybierz typ…</option>
+                    ${EFFECT_TYPES.map(t => `<option value="${t.value}">${escapeHtml(t.label)}</option>`).join('')}
+                </select>
             </div>
             <div>
-                <label class="editor-label" for="${idPrefix}-effect-amount">Ilość</label>
-                <input id="${idPrefix}-effect-amount" type="number" step="1" value="${currentEffect ? currentEffect.amount : 1}" />
+                <select id="${idPrefix}-add-effect-key"></select>
             </div>
         </div>
-        <div class="editor-hint">Wybierz „Brak”, jeśli ten węzeł nie ma wpływać na arkusz postaci.</div>
+        <div class="editor-row">
+            <input id="${idPrefix}-add-effect-amount" type="number" step="1" value="1" placeholder="Ilość" />
+            <button class="editor-btn editor-btn-small" id="${idPrefix}-add-effect-btn">Dodaj efekt</button>
+        </div>
     `;
 }
 
-/** Wires the type→key cascade for a trio built with effectFieldsTemplate(). Call once after inserting the markup. */
-function wireEffectFields(idPrefix, currentEffect) {
-    const typeSelect = bodyEl.querySelector(`#${idPrefix}-effect-type`);
-    const keySelect   = bodyEl.querySelector(`#${idPrefix}-effect-key`);
+/**
+ * Wires the "add one more effect" mini-form built by addEffectFormTemplate().
+ * `onAdd(effect)` is called with a validated {type,key,amount} object once
+ * the user clicks the button; validation errors are shown via setStatus().
+ */
+function wireAddEffectForm(idPrefix, onAdd) {
+    const typeSelect   = bodyEl.querySelector(`#${idPrefix}-add-effect-type`);
+    const keySelect     = bodyEl.querySelector(`#${idPrefix}-add-effect-key`);
+    const amountInput  = bodyEl.querySelector(`#${idPrefix}-add-effect-amount`);
+    const addBtn         = bodyEl.querySelector(`#${idPrefix}-add-effect-btn`);
 
-    populateEffectKeyOptions(keySelect, currentEffect ? currentEffect.type : '', currentEffect ? currentEffect.key : null);
-    typeSelect.addEventListener('change', () => {
-        populateEffectKeyOptions(keySelect, typeSelect.value, null);
+    populateEffectKeyOptions(keySelect, '', null);
+    typeSelect.addEventListener('change', () => populateEffectKeyOptions(keySelect, typeSelect.value, null));
+
+    addBtn.addEventListener('click', () => {
+        const type   = typeSelect.value;
+        const key    = keySelect.value;
+        const amount = Number(amountInput.value);
+
+        if (!type || !key) { setStatus('Wybierz typ i cel efektu.', true); return; }
+        if (!Number.isFinite(amount) || amount === 0) { setStatus('Efekt wymaga niezerowej wartości „Ilość”.', true); return; }
+
+        onAdd({ type, key, amount });
     });
-}
-
-/** Reads the type/key/amount trio back into an effect object, or null. Returns undefined (and sets a status error) if invalid. */
-function readEffectFields(idPrefix) {
-    const type   = bodyEl.querySelector(`#${idPrefix}-effect-type`).value;
-    const key    = bodyEl.querySelector(`#${idPrefix}-effect-key`).value;
-    const amount = Number(bodyEl.querySelector(`#${idPrefix}-effect-amount`).value);
-
-    if (!type) return null; // "Brak" — no effect
-
-    if (!key) { setStatus('Wybierz cel efektu perku.', true); return undefined; }
-    if (!Number.isFinite(amount) || amount === 0) { setStatus('Efekt perku wymaga niezerowej wartości „Ilość”.', true); return undefined; }
-
-    return { type, key, amount };
 }
 
 
@@ -382,7 +401,10 @@ function renderExistingNodeForm(node) {
         </div>
         <div class="editor-hint">Tip: you can also switch to Connect mode and click nodes directly.</div>
 
-        ${effectFieldsTemplate('ed', node.effect)}
+        <label class="editor-label">Efekty perku (wpływ na arkusz postaci)</label>
+        <div id="ed-effects-list">${renderEffectsList(node.effects)}</div>
+        ${addEffectFormTemplate('ed')}
+        <div class="editor-hint">Jeden perk może mieć wiele efektów — dodaj kolejne po kolei. Zmiany są zapisywane od razu, bez „Save Changes”.</div>
 
         <label class="editor-label" for="ed-exclgroup">Mutual-exclusion group</label>
         <select id="ed-exclgroup">
@@ -411,7 +433,16 @@ function renderExistingNodeForm(node) {
         </div>
     `;
 
-    wireEffectFields('ed', node.effect);
+    wireAddEffectForm('ed', (effect) => {
+        AppState.tr.addNodeEffect(node.nodeId, effect);
+        renderInspector(); // re-render the node form, same as adding a Requirement does today
+    });
+    bodyEl.querySelectorAll('[data-remove-effect]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            AppState.tr.removeNodeEffectAt(node.nodeId, Number(btn.dataset.removeEffect));
+            renderInspector();
+        });
+    });
 
     const exclSelect  = bodyEl.querySelector('#ed-exclgroup');
     const newGroupWrap = bodyEl.querySelector('#ed-newgroup-wrap');
@@ -458,9 +489,6 @@ function saveNode(node) {
     if (!Number.isFinite(temp) || temp <= 0) { setStatus('Temperature must be a positive number.', true); return; }
     if (!Number.isFinite(fiDeg) || !Number.isFinite(thDeg)) { setStatus('Fi/theta must be numbers.', true); return; }
 
-    const effect = readEffectFields('ed');
-    if (effect === undefined) return; // readEffectFields already set an error status
-
     let groupLabel = null;
     if (exclSelectVal === '__new__') {
         if (!newGroupLabel) { setStatus('New group needs a label.', true); return; }
@@ -478,7 +506,6 @@ function saveNode(node) {
     node.nodeCost    = cost;
     node.temperature = temp; // doesn't re-tint the already-loaded star texture — cosmetic only on export
 
-    AppState.tr.setNodeEffect(node.nodeId, effect);
     AppState.tr.setNodeExclGroup(node.nodeId, groupLabel, groupLabel ? exclMax : undefined);
 
     const moved = fiDeg !== (-node.fi * 180 / Math.PI) || thDeg !== (node.theta * 180 / Math.PI);
@@ -508,7 +535,16 @@ function addRequirementFromInput(node) {
 // ============================================================
 // New-node form (addNode submode)
 // ============================================================
+
+// The node doesn't exist yet, so its effects can't be live-edited
+// against the tree the way an existing node's can — they're staged
+// here and only submitted once "Create Node" is clicked. Reset every
+// time the form (re)opens.
+let pendingNewNodeEffects = [];
+
 function renderNewNodeForm(fiDeg, thetaDeg) {
+    pendingNewNodeEffects = [];
+
     bodyEl.innerHTML = `
         <div class="editor-field readonly">
             <span class="editor-label">Placing new node at</span>
@@ -538,19 +574,39 @@ function renderNewNodeForm(fiDeg, thetaDeg) {
             </div>
         </div>
 
-        ${effectFieldsTemplate('new', null)}
+        <label class="editor-label">Efekty perku (opcjonalnie)</label>
+        <div id="new-effects-list"><em>Brak efektów.</em></div>
+        ${addEffectFormTemplate('new')}
 
         <button class="editor-btn editor-save-btn" id="new-create">Create Node</button>
         <button class="editor-btn" id="new-cancel">Cancel</button>
     `;
 
-    wireEffectFields('new', null);
+    wireAddEffectForm('new', (effect) => {
+        pendingNewNodeEffects.push(effect);
+        renderPendingEffectsList();
+        setStatus('');
+    });
+    renderPendingEffectsList();
 
     bodyEl.querySelector('#new-create').addEventListener('click', () => createNodeFromForm(fiDeg, thetaDeg));
     bodyEl.querySelector('#new-cancel').addEventListener('click', () => {
         AppState.pendingNewNodePos = null;
         setStatus('');
         renderInspector();
+    });
+}
+
+/** Re-renders just the #new-effects-list div (not the whole form) so other typed fields stay intact. */
+function renderPendingEffectsList() {
+    const listEl = bodyEl.querySelector('#new-effects-list');
+    if (!listEl) return;
+    listEl.innerHTML = renderEffectsList(pendingNewNodeEffects);
+    listEl.querySelectorAll('[data-remove-effect]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingNewNodeEffects.splice(Number(btn.dataset.removeEffect), 1);
+            renderPendingEffectsList();
+        });
     });
 }
 
@@ -566,11 +622,9 @@ function createNodeFromForm(fiDeg, thetaDeg) {
     if (!Number.isFinite(cost) || cost < 0) { setStatus('Cost must be a non-negative number.', true); return; }
     if (!Number.isFinite(temp) || temp <= 0) { setStatus('Temperature must be a positive number.', true); return; }
 
-    const effect = readEffectFields('new');
-    if (effect === undefined) return; // readEffectFields already set an error status
-
     const node = AppState.tr.addNode({
-        id, name, desc, hoverText: hover, cost, temperature: temp, fi: fiDeg, theta: thetaDeg, effect,
+        id, name, desc, hoverText: hover, cost, temperature: temp, fi: fiDeg, theta: thetaDeg,
+        effects: pendingNewNodeEffects,
     });
     if (!node) { setStatus(`Couldn't create node — id "${id}" is already taken.`, true); return; }
 
