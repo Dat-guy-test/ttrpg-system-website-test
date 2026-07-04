@@ -88,4 +88,5 @@ export function refreshPerksTaken() {
         .filter(n => n.nodeActive)
         .map(n => ({ id: n.nodeId, name: n.nodeName }));
     setPerksTaken(active);
+    refreshCharacterSheet();
 }
