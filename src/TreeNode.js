@@ -41,7 +41,6 @@ import { StarModel } from './StarModel.js';
 import { computePanCamera } from './cameraControls.js';
 import { handleEditModeNodeClick } from './editMode.js';
 import { applyNodeEffect, removeNodeEffect, refreshPerksTaken } from './perkEffects.js';
-import { applyNodeEffect, removeNodeEffect, refreshPerksTaken } from './perkEffects.js';
 import { computePotentialAvailable } from './characterState.js';
 
 export class TreeNode extends THREE.Mesh {
