@@ -24,12 +24,21 @@
 //
 // Both are safe to call on a node with no effects (no-op).
 //
-// This module only imports characterState.js and characterSheet.js —
-// neither of which import anything tree-related — so TreeNode.js and
-// Tree.js can import this without creating a circular import.
+// refreshPerksTaken() rebuilds the sheet's "Wybrane Perki" list from
+// scratch based on which tree nodes are CURRENTLY active — called
+// unconditionally on every activation/deactivation (regardless of
+// whether the node carries any stat effects), so it lives as its own
+// function rather than being folded into apply/removeNodeEffect above.
+//
+// This module imports appState.js (a pure leaf — see its own header
+// comment — so this creates no cycle) plus characterState.js and
+// characterSheet.js — neither of which import anything tree-related —
+// so TreeNode.js and Tree.js can import this without creating a
+// circular import.
 // ============================================================
 
-import { setPerkModifier, clearPerkModifiers, EFFECT_TYPES } from './characterState.js';
+import AppState from './appState.js';
+import { setPerkModifier, clearPerkModifiers, setPerksTaken, EFFECT_TYPES } from './characterState.js';
 import { refreshCharacterSheet } from './characterSheet.js';
 
 /** @param {import('./TreeNode.js').TreeNode} node */
@@ -64,4 +73,19 @@ export function removeNodeEffect(node) {
     node.effects.forEach((_, index) => clearPerkModifiers(`node:${node.nodeId}:${index}`));
 
     refreshCharacterSheet();
+}
+
+/**
+ * Rebuilds the "Wybrane Perki" list on the character sheet from
+ * scratch, based on which tree nodes are CURRENTLY active. Call this
+ * after every activation/deactivation — unlike apply/removeNodeEffect,
+ * it doesn't matter whether the node carries any stat effects; a
+ * perk with no stat effect at all should still show up in this list.
+ */
+export function refreshPerksTaken() {
+    if (!AppState.tr) return;
+    const active = AppState.tr.nodes
+        .filter(n => n.nodeActive)
+        .map(n => ({ id: n.nodeId, name: n.nodeName }));
+    setPerksTaken(active);
 }

@@ -79,7 +79,6 @@ export const DAMAGE_ROWS_CONFIG = [
     { key: 'zwykle',      label: 'Zwyk.',  critical: false },
 ];
 
-export const MOTYWACJA_COUNT = 5;
 
 // Improvisation is a 1-6 level; level 0 means "no die yet".
 export const IMPROVISATION_DICE = ['—', '+1d4', '+1d6', '+1d8', '+1d10', '+1d12', '+1d20'];
@@ -220,19 +219,21 @@ function buildDefaultState() {
         abilities,                 // { [key]: { experience, improvisation } } — perk-only
         pointPools,                 // { [poolKey]: { granted: {base, modifiers} } } — perk-only totals; spend via adjustPoolAllocation()
         proficiencies: [],           // [{ id, label }] — freely editable
-        motywacja: new Array(MOTYWACJA_COUNT).fill(false),
-        perksTaken: [],                 // [{ id, name }] — populated by the perk system
+        perksTaken: [],                 // [{ id, name }] — derived live from active tree nodes, see perkEffects.js
     };
 }
 
 /**
  * Merges a saved sheet on top of a fresh default shape. Only restores
  * the parts of the sheet a player can actually edit by hand (name,
- * potential, resource "current", damage, proficiencies, motywacja,
- * perksTaken) plus each perk-field's `base`. Modifiers are never
- * restored from storage — they're derived from which tree nodes are
- * currently active, and re-applied live by perkEffects.js as the
- * player (re)activates nodes each session.
+ * potential, resource "current", damage, proficiencies) plus each
+ * perk-field's `base`. Modifiers are never restored from storage —
+ * they're derived from which tree nodes are currently active, and
+ * re-applied live by perkEffects.js as the player (re)activates nodes
+ * each session. `perksTaken` is the same story: it's rebuilt live from
+ * whichever nodes are active, so it's deliberately never restored here
+ * either — a stale list from a previous session would otherwise show
+ * perks the tree doesn't actually consider active anymore.
  */
 function mergeWithDefaults(defaults, saved) {
     if (!saved || typeof saved !== 'object') return defaults;
@@ -287,8 +288,6 @@ function mergeWithDefaults(defaults, saved) {
     }
 
     if (Array.isArray(saved.proficiencies)) out.proficiencies = saved.proficiencies;
-    if (Array.isArray(saved.motywacja) && saved.motywacja.length === MOTYWACJA_COUNT) out.motywacja = saved.motywacja;
-    if (Array.isArray(saved.perksTaken)) out.perksTaken = saved.perksTaken;
 
     // Player-spent points (modifiers with a 'pool:' sourceId) ARE restored,
     // unlike perk modifiers — spending is a deliberate player choice, not

@@ -7,7 +7,7 @@
 // delegation handles the rest.
 //
 // Editable by the player: Nazwa, Potencjał, resource "current"
-// values, damage table, proficiencies, motywacja checkboxes.
+// values, damage table, proficiencies.
 // Everything else (Charakterystyki, Umiejętności, resource maxima)
 // is perk-only — displayed read-only here, see characterState.js.
 //
@@ -72,12 +72,11 @@ function render() {
             ${renderHeader()}
             ${renderResources()}
             ${renderDamageTable()}
-            ${renderPointPoolsSection()}
             ${renderCharacteristicsSection()}
             ${renderAbilitiesSection()}
             ${renderProficienciesSection()}
-            ${renderMotywacjaSection()}
             ${renderPerksSection()}
+            ${renderPointPoolsSection()}
         </div>
     `;
 
@@ -304,22 +303,6 @@ function renderProficienciesList() {
     `).join('') + '</ul>';
 }
 
-function renderMotywacjaSection() {
-    const boxes = CharacterState.motywacja.map((checked, i) => `
-        <label class="charMotywacja-box">
-            <input type="checkbox" data-motywacja-index="${i}" ${checked ? 'checked' : ''} />
-            <span></span>
-        </label>
-    `).join('');
-
-    return `
-        <section class="charSection">
-            <h2 class="charSection-title">Motywacja</h2>
-            <div class="charMotywacja-row">${boxes}</div>
-        </section>
-    `;
-}
-
 function renderPerksSection() {
     return `
         <section class="charSection">
@@ -415,15 +398,6 @@ function attachHandlers() {
         if (e.key === 'Enter') addProficiency();
     });
     attachProficiencyRemoveHandlers();
-
-    // ---- Motywacja ----
-    rootEl.querySelectorAll('[data-motywacja-index]').forEach((box) => {
-        box.addEventListener('change', (e) => {
-            const idx = Number(e.target.dataset.motywacjaIndex);
-            CharacterState.motywacja[idx] = e.target.checked;
-            saveCharacterState();
-        });
-    });
 }
 
 function attachProficiencyRemoveHandlers() {

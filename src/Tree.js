@@ -48,7 +48,7 @@ import { TreeNode } from './TreeNode.js';
 import { computePanCamera } from './cameraControls.js';
 import { NODE_DATA_URL } from './constants.js';
 import { handleTreesphereClick, handleEditModeConnectionClick } from './editMode.js';
-import { applyNodeEffect, removeNodeEffect } from './perkEffects.js';
+import { applyNodeEffect, removeNodeEffect, refreshPerksTaken } from './perkEffects.js';
 
 
 /**
@@ -590,9 +590,10 @@ export class Tree {
         const node = this.nodes[idx];
         if (!node) return false;
 
-        if (node.nodeActive) removeNodeEffect(node);
-
-        AppState.scene.remove(node);       // TreeNode itself is the hit-sphere mesh
+        if (node.nodeActive) {
+            removeNodeEffect(node);
+            refreshPerksTaken();
+        }
         AppState.scene.remove(node.star);
         AppState.scene.remove(node.nameText);
         for (const line of node.skyLines) AppState.scene.remove(line);

@@ -245,27 +245,6 @@
   background-color: #faf9f5;
 }
 
-/* ---- Motywacja ---------------------------------------------------------- */
-.charMotywacja-row {
-  display: flex;
-  gap: 1em;
-}
-.charMotywacja-box {
-  display: inline-flex;
-  cursor: pointer;
-}
-.charMotywacja-box input { display: none; }
-.charMotywacja-box span {
-  width: 1.6em;
-  height: 1.6em;
-  border: 0.15em solid rgb(187, 128, 241);
-  border-radius: 0.3em;
-  display: inline-block;
-}
-.charMotywacja-box input:checked + span {
-  background-color: rgb(187, 128, 241);
-}
-
 /* ============================================================
    PRINT
    Hides the 3D scene / tab chrome / editor controls entirely and
