@@ -9,8 +9,9 @@
 // Editable by the player: Nazwa, Potencjał (max perk points),
 // resource "current" values, damage table.
 // Everything else (Dostępny Potencjał, Charakterystyki, Umiejętności,
-// resource maxima, Wprawa) is perk-only or derived — displayed
-// read-only here. See characterState.js for how each is computed.
+// resource maxima, Wprawa, Atrybuty) is perk-only or derived —
+// displayed read-only here. See characterState.js for how each is
+// computed.
 //
 // Exports:
 //   initCharacterSheet()    — call once, after #characterPage exists.
@@ -80,6 +81,7 @@ function render() {
             ${renderCharacteristicsSection()}
             ${renderAbilitiesSection()}
             ${renderProficienciesSection()}
+            ${renderAttributesSection()}
             ${renderPerksSection()}
             ${renderPointPoolsSection()}
         </div>
@@ -319,6 +321,40 @@ function renderProficienciesList() {
             </li>
         `;
     }).join('') + '</ul>';
+}
+
+/**
+ * Atrybuty — perk-only free-text traits (name + description), NOT
+ * numeric like everything else on the sheet. CharacterState.attributes
+ * is a plain { [name]: {description, sources} } dict; a name only
+ * appears here while at least one perk still grants it (see
+ * characterState.js's setAttributeSource()/clearAttributeSource() and
+ * perkEffects.js's routing of the 'attribute' effect type). Object
+ * keys are unique by construction, so a given name can never appear
+ * twice even though multiple perks may be the ones granting it.
+ */
+function renderAttributesSection() {
+    return `
+        <section class="charSection">
+            <h2 class="charSection-title">Atrybuty</h2>
+            <div id="char-attributes-list">${renderAttributesList()}</div>
+            <p class="charSection-hint">Atrybuty są przyznawane wyłącznie przez perki.</p>
+        </section>
+    `;
+}
+
+function renderAttributesList() {
+    const entries = Object.entries(CharacterState.attributes);
+
+    if (entries.length === 0) {
+        return '<p class="charSection-hint">Brak atrybutów — aktywuj odpowiednie perki w drzewku umiejętności.</p>';
+    }
+    return '<ul class="charListRows charListRows-attributes">' + entries.map(([name, entry]) => `
+        <li class="charListRow charListRow-attribute">
+            <span class="charAttribute-name">${escapeHtml(name)}</span>
+            <span class="charAttribute-desc">${escapeHtml(entry.description)}</span>
+        </li>
+    `).join('') + '</ul>';
 }
 
 function renderPerksSection() {

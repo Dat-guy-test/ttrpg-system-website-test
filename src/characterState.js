@@ -23,7 +23,7 @@
 // Fields are addressed by dot-path string (e.g.
 // 'abilities.sila.experience', 'resources.actionPoints.max') so
 // setPerkModifier() / clearPerkModifiers() work generically across
-// every perk-driven field without special-casing each group.
+// every perk-driven NUMERIC field without special-casing each group.
 //
 // Resource Maxima (Punkty Akcji/Energii, Wytrzymałość) are NOT
 // separate perk-driven fields at all — they're read directly off a
@@ -35,6 +35,14 @@
 // grant a level in any named Wprawa via free text, so entries are
 // created on demand the first time a perk targets that name (see
 // setPerkModifier()'s 'proficiency:' special-case below).
+//
+// Atrybuty (attributes) are NOT numeric at all — a perk grants a
+// named trait plus a free-text description, and the trait is either
+// present or it isn't (no amount to add up). Because of that they
+// don't go through setPerkModifier()/computeStatValue() like
+// everything above; they have their own tiny source-tracked store —
+// see the ATRYBUTY section and setAttributeSource()/
+// clearAttributeSource() further down.
 // ============================================================
 
 const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable base stats
@@ -43,50 +51,50 @@ const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable 
 
 export const CHARACTERISTICS_CONFIG = [
     { key: 'forma',    label: 'Forma' },
-{ key: 'bystrosc', label: 'Bystrość' },
-{ key: 'silaWoli', label: 'Siła Woli' },
-{ key: 'szybkosc', label: 'Szybkość' },
-{ key: 'udzwig',   label: 'Udźwig' },
+    { key: 'bystrosc', label: 'Bystrość' },
+    { key: 'silaWoli', label: 'Siła Woli' },
+    { key: 'szybkosc', label: 'Szybkość' },
+    { key: 'udzwig',   label: 'Udźwig' },
 ];
 
 export const ABILITIES_CONFIG = [
     { key: 'sila',              label: 'Siła' },
-{ key: 'wigor',              label: 'Wigor' },
-{ key: 'czasReakcji',        label: 'Czas Reakcji' },
-{ key: 'determinacja',       label: 'Determinacja' },
-{ key: 'charyzma',           label: 'Charyzma' },
-{ key: 'skradanieSie',       label: 'Skradanie się' },
-{ key: 'zrecznosc',          label: 'Zręczność' },
-{ key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
-{ key: 'instynkt',           label: 'Instynkt' },
-{ key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
-{ key: 'alchemia',           label: 'Alchemia' },
-{ key: 'inzynieria',         label: 'Inżynieria' },
-{ key: 'majsterkowanie',     label: 'Majsterkowanie' },
-{ key: 'metalurgia',         label: 'Metalurgia' },
-{ key: 'zaklinanie',         label: 'Zaklinanie' },
-{ key: 'badawczosc',         label: 'Badawczość' },
-{ key: 'uczenieSie',         label: 'Uczenie się' },
-{ key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
-{ key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
-{ key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
-{ key: 'kreacja',            label: 'Kreacja' },
-{ key: 'projekcja',          label: 'Projekcja' },
-{ key: 'transmutacja',       label: 'Transmutacja' },
-{ key: 'przywolywanie',      label: 'Przywoływanie' },
-{ key: 'destrukcja',         label: 'Destrukcja' },
+    { key: 'wigor',              label: 'Wigor' },
+    { key: 'czasReakcji',        label: 'Czas Reakcji' },
+    { key: 'determinacja',       label: 'Determinacja' },
+    { key: 'charyzma',           label: 'Charyzma' },
+    { key: 'skradanieSie',       label: 'Skradanie się' },
+    { key: 'zrecznosc',          label: 'Zręczność' },
+    { key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
+    { key: 'instynkt',           label: 'Instynkt' },
+    { key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
+    { key: 'alchemia',           label: 'Alchemia' },
+    { key: 'inzynieria',         label: 'Inżynieria' },
+    { key: 'majsterkowanie',     label: 'Majsterkowanie' },
+    { key: 'metalurgia',         label: 'Metalurgia' },
+    { key: 'zaklinanie',         label: 'Zaklinanie' },
+    { key: 'badawczosc',         label: 'Badawczość' },
+    { key: 'uczenieSie',         label: 'Uczenie się' },
+    { key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
+    { key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
+    { key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
+    { key: 'kreacja',            label: 'Kreacja' },
+    { key: 'projekcja',          label: 'Projekcja' },
+    { key: 'transmutacja',       label: 'Transmutacja' },
+    { key: 'przywolywanie',      label: 'Przywoływanie' },
+    { key: 'destrukcja',         label: 'Destrukcja' },
 ];
 
 // Rows 2-7 (critical: true) get highlighted; "Zwyk." (critical: false)
 // does not. "Łącznie" is a single computed field, handled separately.
 export const DAMAGE_ROWS_CONFIG = [
     { key: 'rany',        label: 'Rany',   critical: true  },
-{ key: 'zlamania',    label: 'Złam.',  critical: true  },
-{ key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
-{ key: 'temperatura', label: 'Temp.',  critical: true  },
-{ key: 'choroby',     label: 'Chor.',  critical: true  },
-{ key: 'krytyczne',   label: 'Kryt.',  critical: true  },
-{ key: 'zwykle',      label: 'Zwyk.',  critical: false },
+    { key: 'zlamania',    label: 'Złam.',  critical: true  },
+    { key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
+    { key: 'temperatura', label: 'Temp.',  critical: true  },
+    { key: 'choroby',     label: 'Chor.',  critical: true  },
+    { key: 'krytyczne',   label: 'Kryt.',  critical: true  },
+    { key: 'zwykle',      label: 'Zwyk.',  critical: false },
 ];
 
 
@@ -164,36 +172,48 @@ export const POINT_POOLS_CONFIG = [
         targetKind: 'characteristic',
         allowedCharacteristics: ['forma', 'bystrosc', 'silaWoli'],
     },
-{
-    key: 'skillExperiencePoints',
-    label: 'Punkty Doświadczenia',
-    targetKind: 'skillExperience', // spendable on any ability's Doświadczenie
-},
-{
-    key: 'skillImprovisationPoints',
-    label: 'Punkty Improwizacji',
-    targetKind: 'skillImprovisation', // spendable on any ability's Improwizacja
-},
+    {
+        key: 'skillExperiencePoints',
+        label: 'Punkty Doświadczenia',
+        targetKind: 'skillExperience', // spendable on any ability's Doświadczenie
+    },
+    {
+        key: 'skillImprovisationPoints',
+        label: 'Punkty Improwizacji',
+        targetKind: 'skillImprovisation', // spendable on any ability's Improwizacja
+    },
 ];
 
 // ------------------------------------------------------------
 // EFFECT TYPES
 // ------------------------------------------------------------
 // Single source of truth for what a tree node's `effects` entries can
-// target. Used by editMode.js to build the inspector's effect
-// dropdowns, and by perkEffects.js to resolve the actual field to
-// modify. Add a new entry here to make a new kind of perk effect
-// available in the editor — nothing else needs to change.
+// target. Used by editMode.js to build the inspector's effect form,
+// and by perkEffects.js to resolve/apply the actual effect. Add a new
+// entry here to make a new kind of perk effect available in the
+// editor — nothing else needs to change (with the caveat that a
+// wholly non-numeric effect — like 'attribute' — needs a small
+// explicit branch in perkEffects.js's applyNodeEffect/removeNodeEffect,
+// since setPerkModifier() only understands numeric fields).
 //
-// `needsKey: false` marks a "grant points to a pool" effect — there's
-// only one pool of each kind, so the editor's target ("Cel") dropdown
-// is skipped for these; `fieldPath()` ignores the (absent) key.
-//
-// `freeform: true` marks an effect whose target ISN'T one of a fixed
-// set of `options` — the editor renders a text input instead of a
-// dropdown, and the target field is auto-created the first time a
-// perk actually uses that name (see setPerkModifier()'s 'proficiency:'
-// special-case).
+// Per-entry flags editMode.js's effect form reads:
+//   needsKey         (default true)  — false for "grant points to a
+//                     pool" effects; there's only one pool of each
+//                     kind so no target picker is shown.
+//   freeform         (default false) — target ISN'T one of a fixed
+//                     `options` list; the editor shows a text input
+//                     instead of a dropdown, and the field springs
+//                     into existence the first time something uses
+//                     that name (Wprawa, Atrybuty).
+//   needsAmount      (default true)  — false for effects with no
+//                     numeric magnitude (currently just 'attribute');
+//                     the editor hides the Amount input and the
+//                     effect object simply omits `amount`.
+//   needsDescription (default false) — true for effects that carry a
+//                     free-text description alongside their name
+//                     (currently just 'attribute'); the editor shows
+//                     an extra textarea and the effect object carries
+//                     a `description` string.
 export const EFFECT_TYPES = [
     {
         value: 'characteristic',
@@ -202,49 +222,63 @@ export const EFFECT_TYPES = [
         needsKey: true,
         fieldPath: (key) => `characteristics.${key}`,
     },
-{
-    value: 'skillExperience',
-    label: 'Zwiększ Doświadczenie Umiejętności (stała wartość)',
-    options: ABILITIES_CONFIG,
-    needsKey: true,
-    fieldPath: (key) => `abilities.${key}.experience`,
-},
-{
-    value: 'skillImprovisation',
-    label: 'Zwiększ Poziom Improwizacji (stała wartość)',
-    options: ABILITIES_CONFIG,
-    needsKey: true,
-    fieldPath: (key) => `abilities.${key}.improvisation`,
-},
-{
-    value: 'proficiency',
-    label: 'Zwiększ Poziom Wprawy (dowolna nazwa)',
-    options: [],
-    needsKey: true,
-    freeform: true, // editor shows a text input for the target instead of a dropdown
-    fieldPath: (key) => `proficiency:${key}`,
-},
-{
-    value: 'characteristicPoints',
-    label: 'Przyznaj Punkty Charakterystyki (Forma / Bystrość / Siła Woli)',
-    options: [],
-    needsKey: false,
-    fieldPath: () => 'pointPools.characteristicPoints.granted',
-},
-{
-    value: 'skillExperiencePoints',
-    label: 'Przyznaj Punkty Doświadczenia (dowolna Umiejętność)',
-    options: [],
-    needsKey: false,
-    fieldPath: () => 'pointPools.skillExperiencePoints.granted',
-},
-{
-    value: 'skillImprovisationPoints',
-    label: 'Przyznaj Punkty Improwizacji (dowolna Umiejętność)',
-    options: [],
-    needsKey: false,
-    fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
-},
+    {
+        value: 'skillExperience',
+        label: 'Zwiększ Doświadczenie Umiejętności (stała wartość)',
+        options: ABILITIES_CONFIG,
+        needsKey: true,
+        fieldPath: (key) => `abilities.${key}.experience`,
+    },
+    {
+        value: 'skillImprovisation',
+        label: 'Zwiększ Poziom Improwizacji (stała wartość)',
+        options: ABILITIES_CONFIG,
+        needsKey: true,
+        fieldPath: (key) => `abilities.${key}.improvisation`,
+    },
+    {
+        value: 'proficiency',
+        label: 'Zwiększ Poziom Wprawy (dowolna nazwa)',
+        options: [],
+        needsKey: true,
+        freeform: true, // editor shows a text input for the target instead of a dropdown
+        fieldPath: (key) => `proficiency:${key}`,
+    },
+    {
+        value: 'attribute',
+        label: 'Nadaj Atrybut (nazwa + opis)',
+        options: [],
+        needsKey: true,
+        freeform: true,        // editor shows a text input for the name instead of a dropdown
+        needsAmount: false,    // attributes are present-or-not, not additive
+        needsDescription: true, // editor shows an extra description textarea
+        // Not used by setPerkModifier() — attributes are non-numeric and are
+        // routed to setAttributeSource()/clearAttributeSource() instead; see
+        // perkEffects.js's applyNodeEffect()/removeNodeEffect(). Kept here
+        // only so every EFFECT_TYPES entry has a fieldPath for consistency.
+        fieldPath: (key) => `attribute:${key}`,
+    },
+    {
+        value: 'characteristicPoints',
+        label: 'Przyznaj Punkty Charakterystyki (Forma / Bystrość / Siła Woli)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.characteristicPoints.granted',
+    },
+    {
+        value: 'skillExperiencePoints',
+        label: 'Przyznaj Punkty Doświadczenia (dowolna Umiejętność)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.skillExperiencePoints.granted',
+    },
+    {
+        value: 'skillImprovisationPoints',
+        label: 'Przyznaj Punkty Improwizacji (dowolna Umiejętność)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
+    },
 ];
 
 
@@ -287,6 +321,7 @@ function buildDefaultState() {
         abilities,                 // { [key]: { experience, improvisation } } — perk-only
         pointPools,                 // { [poolKey]: { granted: {base, modifiers} } } — perk-only totals; spend via adjustPoolAllocation()
         proficiencies: {},               // { [name]: { base, modifiers } } — perk-only; keys created on demand, see EFFECT_TYPES's 'proficiency' entry
+        attributes: {},                     // { [name]: { description, sources: {[sourceId]: description} } } — perk-only; see ATRYBUTY section below
         perksTaken: [],                 // [{ id, name, cost }] — derived live from active tree nodes, see perkEffects.js
     };
 }
@@ -298,10 +333,11 @@ function buildDefaultState() {
  * `base`. Modifiers are never restored from storage — they're derived
  * from which tree nodes are currently active, and re-applied live by
  * perkEffects.js as the player (re)activates nodes each session.
- * `perksTaken` and `proficiencies` are the same story: rebuilt/created
- * live from whichever nodes are active, so they're deliberately never
- * restored here either — stale data from a previous session would
- * otherwise show perks/Wprawa the tree doesn't actually grant anymore.
+ * `perksTaken`, `proficiencies`, and `attributes` are the same story:
+ * rebuilt/created live from whichever nodes are active, so they're
+ * deliberately never restored here either — stale data from a
+ * previous session would otherwise show perks/Wprawa/Atrybuty the
+ * tree doesn't actually grant anymore.
  */
 function mergeWithDefaults(defaults, saved) {
     if (!saved || typeof saved !== 'object') return defaults;
@@ -502,7 +538,7 @@ export function setPerkModifier(fieldPath, sourceId, amount, label = '') {
     if (amount) field.modifiers.push({ sourceId, amount: Number(amount), label });
 }
 
-/** Removes every modifier contributed by one source (e.g. one perk node) from every field. */
+/** Removes every NUMERIC modifier contributed by one source (e.g. one perk node) from every perk-ready field. Does not touch Atrybuty — see clearAttributeSource() for that. */
 export function clearPerkModifiers(sourceId) {
     walkStatFields(CharacterState, (field) => {
         field.modifiers = field.modifiers.filter(m => m.sourceId !== sourceId);
@@ -629,4 +665,98 @@ export function adjustPoolAllocation(poolKey, fieldPath, delta) {
     setPerkModifier(fieldPath, poolAllocationSourceId(poolKey), nextAlloc, poolCfg.label);
     saveCharacterState();
     return true;
+}
+
+
+// ------------------------------------------------------------
+// ATRYBUTY (attributes)
+// ------------------------------------------------------------
+// Free-text traits granted by perks — e.g. "Żądza Krwi" with a full
+// description paragraph (see nodes.json's Wampir origin for a
+// real-world example of this kind of text). Unlike every perk-only
+// field above, an Atrybut isn't a number that adds up: it's simply
+// present or absent, and its name must stay unique — CharacterState
+// .attributes is a plain object keyed by name, so that uniqueness is
+// automatic (an object can't have two entries with the same key).
+//
+// Storage shape:
+//   CharacterState.attributes = {
+//     [name]: {
+//       description: string,             // the text currently shown on the sheet
+//       sources: { [sourceId]: string }, // every perk currently granting
+//                                        // it, and the description text
+//                                        // THAT perk supplied
+//     }
+//   }
+//
+// Multiple perks can grant the SAME name — each gets its own entry in
+// `sources`, so deactivating one doesn't remove the attribute as long
+// as another source still grants it (falls back to that source's
+// text instead). The attribute entry itself is only deleted once its
+// `sources` dict goes empty. This mirrors the "many modifiers, one
+// sourceId per contributor" shape used everywhere else in this file,
+// just without the numeric summing.
+// ------------------------------------------------------------
+
+/**
+ * Finds (creating if necessary) the entry for one named Atrybut.
+ * Like Wprawa, an Atrybut's name isn't a fixed config list — any
+ * name a perk targets springs into existence the first time it's
+ * granted.
+ */
+function ensureAttributeEntry(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return null;
+    if (!CharacterState.attributes[trimmed]) {
+        CharacterState.attributes[trimmed] = { description: '', sources: {} };
+    }
+    return CharacterState.attributes[trimmed];
+}
+
+/**
+ * Grants (or updates) one perk's contribution to a named Atrybut.
+ * Safe to call repeatedly for the same sourceId — each call replaces
+ * that source's previous text for this name instead of duplicating
+ * it. The displayed `description` always reflects whichever source
+ * was applied most recently (same "last write for this sourceId
+ * wins, but every source keeps its own copy" idea as setPerkModifier,
+ * just without the summing).
+ *
+ * @param {string} name
+ * @param {string} sourceId    — e.g. `node:<nodeId>:<effectIndex>`
+ * @param {string} description
+ */
+export function setAttributeSource(name, sourceId, description) {
+    const entry = ensureAttributeEntry(name);
+    if (!entry) return;
+    entry.sources[sourceId] = description || '';
+    entry.description = entry.sources[sourceId];
+}
+
+/**
+ * Removes one source's grant from every Atrybut it contributed to
+ * (a single perk node could in principle grant more than one named
+ * Atrybut across its effects list, so this checks all of them). If an
+ * attribute still has other sources after removing this one, it
+ * falls back to showing one of their descriptions instead of going
+ * blank; if none remain, the whole attribute entry is deleted —
+ * matching clearPerkModifiers()'s "the source's contribution
+ * disappears" behaviour for numeric fields.
+ *
+ * @param {string} sourceId
+ */
+export function clearAttributeSource(sourceId) {
+    for (const name of Object.keys(CharacterState.attributes)) {
+        const entry = CharacterState.attributes[name];
+        if (!(sourceId in entry.sources)) continue;
+
+        delete entry.sources[sourceId];
+
+        const remaining = Object.values(entry.sources);
+        if (remaining.length === 0) {
+            delete CharacterState.attributes[name];
+        } else {
+            entry.description = remaining[remaining.length - 1];
+        }
+    }
 }

@@ -9,12 +9,22 @@
 //     { type: 'characteristic',    key: 'forma',    amount: 1 },
 //     { type: 'skillExperience',   key: 'sila',      amount: 5 },
 //     { type: 'skillImprovisation', key: 'sila',      amount: 1 },
+//     { type: 'attribute', key: 'Żądza Krwi', description: '...' },
 //   ]
 //
 // Each entry gets its own stable modifier source id —
 // `node:<nodeId>:<index in effects array>` — so multiple effects on
-// the same node (even two targeting the same stat) apply and clear
-// independently instead of overwriting one another.
+// the same node (even two targeting the same stat, or two granting
+// the same Atrybut) apply and clear independently instead of
+// overwriting one another.
+//
+// Most effect types are numeric and go through setPerkModifier()/
+// clearPerkModifiers() (see characterState.js). The 'attribute' type
+// is the one exception — Atrybuty carry free text, not a number — so
+// it's routed to setAttributeSource()/clearAttributeSource() instead.
+// Both apply/removeNodeEffect() below handle this with a small
+// explicit branch rather than trying to force attributes through the
+// numeric-modifier machinery.
 //
 // applyNodeEffect(node)  — called from TreeNode.onClick on activation
 // removeNodeEffect(node) — called from TreeNode.onClick on deactivation,
@@ -38,7 +48,14 @@
 // ============================================================
 
 import AppState from './appState.js';
-import { setPerkModifier, clearPerkModifiers, setPerksTaken, EFFECT_TYPES } from './characterState.js';
+import {
+    setPerkModifier,
+    clearPerkModifiers,
+    setPerksTaken,
+    setAttributeSource,
+    clearAttributeSource,
+    EFFECT_TYPES,
+} from './characterState.js';
 import { refreshCharacterSheet } from './characterSheet.js';
 
 /** @param {import('./TreeNode.js').TreeNode} node */
@@ -55,12 +72,22 @@ export function applyNodeEffect(node) {
         }
         if (effectDef.needsKey !== false && !effect.key) return; // malformed — missing required target
 
-        setPerkModifier(
-            effectDef.fieldPath(effect.key),
-            `node:${node.nodeId}:${index}`,
-            effect.amount,
-            `${effectDef.label}: ${node.nodeName}`
-        );
+        const sourceId = `node:${node.nodeId}:${index}`;
+
+        if (effect.type === 'attribute') {
+            // Atrybuty are non-numeric — name + free-text description —
+            // so they're granted through their own source-tracked store
+            // instead of setPerkModifier(). See characterState.js's
+            // setAttributeSource()/CharacterState.attributes.
+            setAttributeSource(effect.key, sourceId, effect.description || '');
+        } else {
+            setPerkModifier(
+                effectDef.fieldPath(effect.key),
+                sourceId,
+                effect.amount,
+                `${effectDef.label}: ${node.nodeName}`
+            );
+        }
     });
 
     refreshCharacterSheet();
@@ -70,7 +97,14 @@ export function applyNodeEffect(node) {
 export function removeNodeEffect(node) {
     if (!Array.isArray(node.effects) || node.effects.length === 0) return;
 
-    node.effects.forEach((_, index) => clearPerkModifiers(`node:${node.nodeId}:${index}`));
+    node.effects.forEach((_, index) => {
+        const sourceId = `node:${node.nodeId}:${index}`;
+        // Harmless no-op if this particular effect wasn't of the
+        // matching kind — a numeric effect's sourceId was never
+        // registered with attributes, and vice versa.
+        clearPerkModifiers(sourceId);
+        clearAttributeSource(sourceId);
+    });
 
     refreshCharacterSheet();
 }

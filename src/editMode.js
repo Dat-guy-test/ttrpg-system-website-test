@@ -270,25 +270,42 @@ function populateEffectKeyOptions(selectEl, type, selectedKey) {
     selectEl.disabled = options.length === 0;
 }
 
-/** Renders the current effects list as removable rows (reuses the Requirements row styling). */
+/**
+ * Renders the current effects list as removable rows (reuses the
+ * Requirements row styling). Most effect types show "Label — Target:
+ * ±Amount"; effect types marked `needsDescription` (currently just
+ * 'attribute') show "Label — Name: “description text”" instead,
+ * since they don't carry a numeric amount at all.
+ */
 function renderEffectsList(effects) {
     if (!effects || effects.length === 0) return '<em>Brak efektów.</em>';
     return effects.map((eff, i) => {
         const def = EFFECT_TYPES.find(e => e.value === eff.type);
         const defLabel = def ? def.label : eff.type;
         const needsKey = def ? def.needsKey !== false : true;
-        // Freeform effects (e.g. 'proficiency') don't resolve against a
-        // fixed options list — eff.key IS the display name already.
+        // Freeform effects (e.g. 'proficiency', 'attribute') don't resolve
+        // against a fixed options list — eff.key IS the display name already.
         const isFreeform = !!(def && def.freeform);
+        const needsDescription = !!(def && def.needsDescription);
         const targetLabel = needsKey
             ? (isFreeform
                 ? eff.key
                 : ((def && def.options.find(o => o.key === eff.key)) || {}).label || eff.key)
             : null;
-        const sign = eff.amount > 0 ? '+' : '';
-        const line = targetLabel
-            ? `${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: ${sign}${eff.amount}`
-            : `${escapeHtml(defLabel)}: ${sign}${eff.amount}`;
+
+        let line;
+        if (needsDescription) {
+            const descText = escapeHtml(eff.description || '');
+            line = targetLabel
+                ? `${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: “${descText}”`
+                : `${escapeHtml(defLabel)}: “${descText}”`;
+        } else {
+            const sign = eff.amount > 0 ? '+' : '';
+            line = targetLabel
+                ? `${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: ${sign}${eff.amount}`
+                : `${escapeHtml(defLabel)}: ${sign}${eff.amount}`;
+        }
+
         return `
             <div class="editor-req-row">
                 <span>${line}</span>
@@ -299,11 +316,13 @@ function renderEffectsList(effects) {
 }
 
 /**
- * Markup for the "add one more effect" mini-form: type / target / amount + a button.
- * The "target" slot renders BOTH a <select> (for fixed-option effect
- * types) and a text <input> (for freeform ones, e.g. 'proficiency');
- * wireAddEffectForm() below toggles which one is visible based on the
- * chosen type's `freeform` flag.
+ * Markup for the "add one more effect" mini-form: type / target /
+ * amount (or description) + a button. The "target" slot renders BOTH
+ * a <select> (for fixed-option effect types) and a text <input> (for
+ * freeform ones, e.g. 'proficiency', 'attribute'); the description
+ * textarea and the amount input are both always present in the DOM
+ * and toggled by wireAddEffectForm() below based on the chosen type's
+ * `freeform` / `needsAmount` / `needsDescription` flags.
  */
 function addEffectFormTemplate(idPrefix) {
     return `
@@ -316,9 +335,10 @@ function addEffectFormTemplate(idPrefix) {
             </div>
             <div>
                 <select id="${idPrefix}-add-effect-key"></select>
-                <input id="${idPrefix}-add-effect-key-text" type="text" placeholder="Nazwa wprawy…" style="display:none;" />
+                <input id="${idPrefix}-add-effect-key-text" type="text" placeholder="Nazwa…" style="display:none;" />
             </div>
         </div>
+        <textarea id="${idPrefix}-add-effect-desc" rows="3" placeholder="Opis atrybutu…" style="display:none;"></textarea>
         <div class="editor-row">
             <input id="${idPrefix}-add-effect-amount" type="number" step="1" value="1" placeholder="Ilość" />
             <button class="editor-btn editor-btn-small" id="${idPrefix}-add-effect-btn">Dodaj efekt</button>
@@ -328,46 +348,72 @@ function addEffectFormTemplate(idPrefix) {
 
 /**
  * Wires the "add one more effect" mini-form built by addEffectFormTemplate().
- * `onAdd(effect)` is called with a validated {type,key,amount} object once
- * the user clicks the button; validation errors are shown via setStatus().
+ * `onAdd(effect)` is called with a validated effect object once the
+ * user clicks the button; validation errors are shown via setStatus().
  *
- * Most effect types target one of a fixed `options` list (a <select>).
- * Types marked `freeform: true` (currently just 'proficiency', see
- * characterState.js's EFFECT_TYPES) target an arbitrary typed name
- * instead — for those the text input is shown and the select hidden.
+ * Most effect types target one of a fixed `options` list (a <select>)
+ * and carry a numeric `amount`. Types marked `freeform: true` (e.g.
+ * 'proficiency', 'attribute') target an arbitrary typed name instead —
+ * for those the text input is shown and the select hidden. Types
+ * marked `needsAmount: false` (currently just 'attribute') hide the
+ * Amount field entirely and omit `amount` from the built effect.
+ * Types marked `needsDescription: true` (currently just 'attribute')
+ * show an extra description textarea and require non-empty text.
  */
 function wireAddEffectForm(idPrefix, onAdd) {
     const typeSelect   = bodyEl.querySelector(`#${idPrefix}-add-effect-type`);
     const keySelect    = bodyEl.querySelector(`#${idPrefix}-add-effect-key`);
     const keyTextInput = bodyEl.querySelector(`#${idPrefix}-add-effect-key-text`);
+    const descInput    = bodyEl.querySelector(`#${idPrefix}-add-effect-desc`);
     const amountInput  = bodyEl.querySelector(`#${idPrefix}-add-effect-amount`);
     const addBtn       = bodyEl.querySelector(`#${idPrefix}-add-effect-btn`);
 
-    function updateKeyInputVisibility() {
-        const def = EFFECT_TYPES.find(e => e.value === typeSelect.value);
-        const isFreeform = !!(def && def.freeform);
+    function currentDef() {
+        return EFFECT_TYPES.find(e => e.value === typeSelect.value);
+    }
+
+    function updateFieldVisibility() {
+        const def = currentDef();
+        const isFreeform        = !!(def && def.freeform);
+        const needsDescription  = !!(def && def.needsDescription);
+        const needsAmount       = !def || def.needsAmount !== false;
+
         keySelect.style.display    = isFreeform ? 'none' : '';
         keyTextInput.style.display = isFreeform ? '' : 'none';
         if (!isFreeform) populateEffectKeyOptions(keySelect, typeSelect.value, null);
+
+        descInput.style.display   = needsDescription ? '' : 'none';
+        amountInput.style.display = needsAmount ? '' : 'none';
     }
 
-    updateKeyInputVisibility();
-    typeSelect.addEventListener('change', updateKeyInputVisibility);
+    updateFieldVisibility();
+    typeSelect.addEventListener('change', updateFieldVisibility);
 
     addBtn.addEventListener('click', () => {
-        const type       = typeSelect.value;
-        const def        = EFFECT_TYPES.find(e => e.value === type);
-        const needsKey   = def ? def.needsKey !== false : true;
-        const isFreeform = !!(def && def.freeform);
-        const key        = needsKey ? (isFreeform ? keyTextInput.value.trim() : keySelect.value) : null;
-        const amount     = Number(amountInput.value);
+        const type              = typeSelect.value;
+        const def               = currentDef();
+        const needsKey          = def ? def.needsKey !== false : true;
+        const isFreeform         = !!(def && def.freeform);
+        const needsDescription   = !!(def && def.needsDescription);
+        const needsAmount        = !def || def.needsAmount !== false;
+
+        const key         = needsKey ? (isFreeform ? keyTextInput.value.trim() : keySelect.value) : null;
+        const description = needsDescription ? descInput.value.trim() : null;
+        const amount       = needsAmount ? Number(amountInput.value) : null;
 
         if (!type) { setStatus('Wybierz typ efektu.', true); return; }
         if (needsKey && !key) { setStatus('Wybierz lub wpisz cel efektu.', true); return; }
-        if (!Number.isFinite(amount) || amount === 0) { setStatus('Efekt wymaga niezerowej wartości „Ilość”.', true); return; }
+        if (needsDescription && !description) { setStatus('Ten efekt wymaga opisu.', true); return; }
+        if (needsAmount && (!Number.isFinite(amount) || amount === 0)) { setStatus('Efekt wymaga niezerowej wartości „Ilość”.', true); return; }
 
-        onAdd({ type, key, amount });
+        const effect = { type, key };
+        if (needsAmount) effect.amount = amount;
+        if (needsDescription) effect.description = description;
+
+        onAdd(effect);
+
         if (isFreeform) keyTextInput.value = '';
+        if (needsDescription) descInput.value = '';
     });
 }
 
