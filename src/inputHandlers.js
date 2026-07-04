@@ -32,14 +32,26 @@ export function registerInputHandlers() {
   // pointer, then fires onPointerOver / onPointerOut as needed.
   // ============================================================
   window.addEventListener('pointermove', (e) => {
+    if (!AppState.container.contains(e.target)) {
+      // Pointer is over a UI overlay (e.g. the edit-mode panel), not the
+      // 3D canvas — clear any stale hover state and skip raycasting so
+      // clicks on buttons/inputs never get reinterpreted as scene clicks.
+      Object.keys(AppState.hovered).forEach((key) => {
+        const hoveredItem = AppState.hovered[key];
+        if (hoveredItem.object.onPointerOut) hoveredItem.object.onPointerOut(hoveredItem);
+        delete AppState.hovered[key];
+      });
+      AppState.intersects = [];
+      return;
+    }
+
     AppState.mouse.set(
       (e.offsetX / AppState.container.clientWidth)  *  2 - 1,
-      (e.offsetY / AppState.container.clientHeight) * -2 + 1
+                       (e.offsetY / AppState.container.clientHeight) * -2 + 1
     );
     AppState.raycaster.setFromCamera(AppState.mouse, AppState.camera);
     AppState.intersects = AppState.raycaster.intersectObjects(AppState.scene.children, true);
 
-    // Objects that were hovered last frame but aren't hit this frame → onPointerOut
     Object.keys(AppState.hovered).forEach((key) => {
       const stillHit = AppState.intersects.find(hit => hit.object.uuid === key);
       if (!stillHit) {
@@ -49,7 +61,6 @@ export function registerInputHandlers() {
       }
     });
 
-    // Newly-hit objects → onPointerOver; all hit objects → onPointerMove
     AppState.intersects.forEach((hit) => {
       if (!AppState.hovered[hit.object.uuid]) {
         AppState.hovered[hit.object.uuid] = hit;
@@ -59,12 +70,8 @@ export function registerInputHandlers() {
     });
   });
 
-
-  // ============================================================
-  // CLICK — NODE ACTIVATION
-  // Fires onClick on every object under the pointer.
-  // ============================================================
-  window.addEventListener('click', () => {
+  window.addEventListener('click', (e) => {
+    if (!AppState.container.contains(e.target)) return; // clicks on UI panels never hit the 3D scene
     AppState.intersects.forEach((hit) => {
       if (hit.object.onClick) hit.object.onClick(hit);
     });
