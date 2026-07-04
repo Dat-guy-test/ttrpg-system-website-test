@@ -37,13 +37,14 @@ export function applyNodeEffect(node) {
     if (!Array.isArray(node.effects) || node.effects.length === 0) return;
 
     node.effects.forEach((effect, index) => {
-        if (!effect || !effect.type || !effect.key) return;
+        if (!effect || !effect.type) return;
 
         const effectDef = EFFECT_TYPES.find(e => e.value === effect.type);
         if (!effectDef) {
             console.error(`perkEffects: unknown effect type "${effect.type}" on node "${node.nodeId}" (effect #${index}).`);
             return;
         }
+        if (effectDef.needsKey !== false && !effect.key) return; // malformed — missing required target
 
         setPerkModifier(
             effectDef.fieldPath(effect.key),

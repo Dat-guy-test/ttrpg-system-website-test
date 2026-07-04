@@ -181,7 +181,25 @@
   align-items: center;
   justify-content: center;
   height: 2.6em;
+  gap: 0.3em;
 }
+
+/* +/- buttons for spending pooled points into a Charakterystyka/Umiejętność */
+.charSpend-btn {
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(187, 128, 241);
+  background-color: #ffffff;
+  color: rgb(146, 92, 199);
+  font-weight: 700;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.charSpend-btn:hover:not(:disabled) { background-color: rgb(232, 172, 255); }
+.charSpend-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* Ability boxes are taller — they show two stacked sub-fields
    (Doświadczenie + Improwizacja) instead of one value. */
@@ -276,6 +294,7 @@
     color: #000000;
   }
   .charStat-readonly[title] { border-bottom-color: #999999; }
+  .charSpend-btn { display: none; }
 
   .charSection { break-inside: avoid; }
   .dmgTable, .charStatGrid { break-inside: avoid; }

@@ -275,12 +275,18 @@ function renderEffectsList(effects) {
     if (!effects || effects.length === 0) return '<em>Brak efektów.</em>';
     return effects.map((eff, i) => {
         const def = EFFECT_TYPES.find(e => e.value === eff.type);
-        const defLabel    = def ? def.label : eff.type;
-        const targetLabel = def ? ((def.options.find(o => o.key === eff.key) || {}).label || eff.key) : eff.key;
+        const defLabel = def ? def.label : eff.type;
+        const needsKey = def ? def.needsKey !== false : true;
+        const targetLabel = needsKey
+            ? ((def && def.options.find(o => o.key === eff.key)) || {}).label || eff.key
+            : null;
         const sign = eff.amount > 0 ? '+' : '';
+        const line = targetLabel
+            ? `${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: ${sign}${eff.amount}`
+            : `${escapeHtml(defLabel)}: ${sign}${eff.amount}`;
         return `
             <div class="editor-req-row">
-                <span>${escapeHtml(defLabel)} — ${escapeHtml(targetLabel)}: ${sign}${eff.amount}</span>
+                <span>${line}</span>
                 <button class="editor-btn editor-btn-small" data-remove-effect="${i}">✕</button>
             </div>
         `;
@@ -323,11 +329,14 @@ function wireAddEffectForm(idPrefix, onAdd) {
     typeSelect.addEventListener('change', () => populateEffectKeyOptions(keySelect, typeSelect.value, null));
 
     addBtn.addEventListener('click', () => {
-        const type   = typeSelect.value;
-        const key    = keySelect.value;
-        const amount = Number(amountInput.value);
+        const type    = typeSelect.value;
+        const def     = EFFECT_TYPES.find(e => e.value === type);
+        const needsKey = def ? def.needsKey !== false : true;
+        const key     = needsKey ? keySelect.value : null;
+        const amount  = Number(amountInput.value);
 
-        if (!type || !key) { setStatus('Wybierz typ i cel efektu.', true); return; }
+        if (!type) { setStatus('Wybierz typ efektu.', true); return; }
+        if (needsKey && !key) { setStatus('Wybierz cel efektu.', true); return; }
         if (!Number.isFinite(amount) || amount === 0) { setStatus('Efekt wymaga niezerowej wartości „Ilość”.', true); return; }
 
         onAdd({ type, key, amount });

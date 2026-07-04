@@ -29,7 +29,14 @@ import {
     CHARACTERISTICS_CONFIG,
     ABILITIES_CONFIG,
     DAMAGE_ROWS_CONFIG,
+    POINT_POOLS_CONFIG,
+    computePoolSpent,
+    computePoolAvailable,
+    getFieldPoolAllocation,
+    adjustPoolAllocation,
 } from './characterState.js';
+
+const CHARACTERISTIC_POOL = POINT_POOLS_CONFIG.find(p => p.key === 'characteristicPoints');
 
 let rootEl = null;
 
@@ -65,6 +72,7 @@ function render() {
             ${renderHeader()}
             ${renderResources()}
             ${renderDamageTable()}
+            ${renderPointPoolsSection()}
             ${renderCharacteristicsSection()}
             ${renderAbilitiesSection()}
             ${renderProficienciesSection()}
@@ -165,16 +173,56 @@ function renderDamageTable() {
     `;
 }
 
-/** Charakterystyki — single perk-only value per stat, read-only. */
+/** Summary boxes: how many points each pool has granted vs. how many are still unspent. */
+function renderPointPoolsSection() {
+    const boxes = POINT_POOLS_CONFIG.map(cfg => {
+        const granted   = computeStatValue(CharacterState.pointPools[cfg.key].granted).value;
+        const available = computePoolAvailable(cfg.key);
+        return `
+            <div class="statWrapper charResourceBox">
+                <div class="statLabel">${escapeHtml(cfg.label)}</div>
+                <div class="statValue charResourceBox-value">
+                    <span class="charStat-readonly">${available}</span>
+                    <span class="charResourceBox-slash">/</span>
+                    <span class="charStat-readonly charResourceBox-max">${granted}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <section class="charSection">
+            <h2 class="charSection-title">Punkty do Rozdania</h2>
+            <div class="charResourceGroup">${boxes}</div>
+            <p class="charSection-hint">Przyznawane przez perki. Rozdzielaj je przyciskami +/- przy Charakterystykach i Umiejętnościach poniżej.</p>
+        </section>
+    `;
+}
+
+/** A +/- pair for spending one point from `poolKey` into `fieldPath`. Buttons disable themselves when spending/refunding isn't possible. */
+function renderPointSpender(poolKey, fieldPath) {
+    const allocatedHere = getFieldPoolAllocation(fieldPath, poolKey);
+    const available     = computePoolAvailable(poolKey);
+    return `
+        <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="-1" ${allocatedHere <= 0 ? 'disabled' : ''} title="Odbierz 1 punkt">–</button>
+        <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="1" ${available <= 0 ? 'disabled' : ''} title="Wydaj 1 punkt">+</button>
+    `;
+}
+
+/** Charakterystyki — single perk-only value per stat. Forma/Bystrość/Siła Woli also get +/- spenders for Punkty Charakterystyki. */
 function renderCharacteristicsSection() {
     const fields = CHARACTERISTICS_CONFIG.map(cfg => {
+        const fieldPath = `characteristics.${cfg.key}`;
         const { value, isModified, modifiers } = computeStatValue(CharacterState.characteristics[cfg.key]);
         const title = isModified ? escapeHtml(modifierBreakdown(modifiers)) : '';
+        const spendable = CHARACTERISTIC_POOL && CHARACTERISTIC_POOL.allowedCharacteristics.includes(cfg.key);
+
         return `
             <div class="statWrapper charStatField">
                 <div class="statLabel">${escapeHtml(cfg.label)}</div>
                 <div class="statValue charStatField-value">
                     <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${value}</span>
+                    ${spendable ? renderPointSpender('characteristicPoints', fieldPath) : ''}
                 </div>
             </div>
         `;
@@ -189,13 +237,16 @@ function renderCharacteristicsSection() {
 }
 
 /**
- * Umiejętności — each ability has two independent perk-only tracks:
- *   Doświadczenie (Experience) — a plain number
- *   Improwizacja (Improvisation) — a 1-6 level, shown as its die (+1d4 … +1d20)
+ * Umiejętności — each ability has two independent perk-only tracks,
+ * each spendable from its own pool:
+ *   Doświadczenie (Experience) — a plain number, spent from Punkty Doświadczenia
+ *   Improwizacja (Improvisation) — a 1-6 level, spent from Punkty Improwizacji
  */
 function renderAbilitiesSection() {
     const fields = ABILITIES_CONFIG.map(cfg => {
         const ability = CharacterState.abilities[cfg.key];
+        const expPath    = `abilities.${cfg.key}.experience`;
+        const improvPath = `abilities.${cfg.key}.improvisation`;
         const exp    = computeStatValue(ability.experience);
         const improv = computeStatValue(ability.improvisation);
         const expTitle    = exp.isModified    ? escapeHtml(modifierBreakdown(exp.modifiers))    : '';
@@ -208,10 +259,12 @@ function renderAbilitiesSection() {
                     <div class="charAbility-sub">
                         <span class="charAbility-subLabel">Dośw.</span>
                         <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
+                        ${renderPointSpender('skillExperiencePoints', expPath)}
                     </div>
                     <div class="charAbility-sub">
                         <span class="charAbility-subLabel">Improw.</span>
                         <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
+                        ${renderPointSpender('skillImprovisationPoints', improvPath)}
                     </div>
                 </div>
             </div>
@@ -332,6 +385,17 @@ function attachHandlers() {
             CharacterState.damage[dmgRow][dmgCol] = Number(e.target.value) || 0;
             saveCharacterState();
             rootEl.querySelector('#char-dmg-total').textContent = computeDamageTotal();
+        });
+    });
+
+    // ---- Point pool spending (Charakterystyki + Umiejętności +/- buttons) ----
+    // A full re-render is needed (not just a local DOM patch) because spending
+    // from a pool changes that pool's "available" balance everywhere it's
+    // shown, not just next to the field that was just clicked.
+    rootEl.querySelectorAll('[data-spend-pool]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const { spendPool, spendPath, spendDelta } = btn.dataset;
+            if (adjustPoolAllocation(spendPool, spendPath, Number(spendDelta))) render();
         });
     });
 

@@ -33,50 +33,50 @@ const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable 
 
 export const CHARACTERISTICS_CONFIG = [
     { key: 'forma',    label: 'Forma' },
-{ key: 'bystrosc', label: 'Bystrość' },
-{ key: 'silaWoli', label: 'Siła Woli' },
-{ key: 'szybkosc', label: 'Szybkość' },
-{ key: 'udzwig',   label: 'Udźwig' },
+    { key: 'bystrosc', label: 'Bystrość' },
+    { key: 'silaWoli', label: 'Siła Woli' },
+    { key: 'szybkosc', label: 'Szybkość' },
+    { key: 'udzwig',   label: 'Udźwig' },
 ];
 
 export const ABILITIES_CONFIG = [
     { key: 'sila',              label: 'Siła' },
-{ key: 'wigor',              label: 'Wigor' },
-{ key: 'czasReakcji',        label: 'Czas Reakcji' },
-{ key: 'determinacja',       label: 'Determinacja' },
-{ key: 'charyzma',           label: 'Charyzma' },
-{ key: 'skradanieSie',       label: 'Skradanie się' },
-{ key: 'zrecznosc',          label: 'Zręczność' },
-{ key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
-{ key: 'instynkt',           label: 'Instynkt' },
-{ key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
-{ key: 'alchemia',           label: 'Alchemia' },
-{ key: 'inzynieria',         label: 'Inżynieria' },
-{ key: 'majsterkowanie',     label: 'Majsterkowanie' },
-{ key: 'metalurgia',         label: 'Metalurgia' },
-{ key: 'zaklinanie',         label: 'Zaklinanie' },
-{ key: 'badawczosc',         label: 'Badawczość' },
-{ key: 'uczenieSie',         label: 'Uczenie się' },
-{ key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
-{ key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
-{ key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
-{ key: 'kreacja',            label: 'Kreacja' },
-{ key: 'projekcja',          label: 'Projekcja' },
-{ key: 'transmutacja',       label: 'Transmutacja' },
-{ key: 'przywolywanie',      label: 'Przywoływanie' },
-{ key: 'destrukcja',         label: 'Destrukcja' },
+    { key: 'wigor',              label: 'Wigor' },
+    { key: 'czasReakcji',        label: 'Czas Reakcji' },
+    { key: 'determinacja',       label: 'Determinacja' },
+    { key: 'charyzma',           label: 'Charyzma' },
+    { key: 'skradanieSie',       label: 'Skradanie się' },
+    { key: 'zrecznosc',          label: 'Zręczność' },
+    { key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
+    { key: 'instynkt',           label: 'Instynkt' },
+    { key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
+    { key: 'alchemia',           label: 'Alchemia' },
+    { key: 'inzynieria',         label: 'Inżynieria' },
+    { key: 'majsterkowanie',     label: 'Majsterkowanie' },
+    { key: 'metalurgia',         label: 'Metalurgia' },
+    { key: 'zaklinanie',         label: 'Zaklinanie' },
+    { key: 'badawczosc',         label: 'Badawczość' },
+    { key: 'uczenieSie',         label: 'Uczenie się' },
+    { key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
+    { key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
+    { key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
+    { key: 'kreacja',            label: 'Kreacja' },
+    { key: 'projekcja',          label: 'Projekcja' },
+    { key: 'transmutacja',       label: 'Transmutacja' },
+    { key: 'przywolywanie',      label: 'Przywoływanie' },
+    { key: 'destrukcja',         label: 'Destrukcja' },
 ];
 
 // Rows 2-7 (critical: true) get highlighted; "Zwyk." (critical: false)
 // does not. "Łącznie" is a single computed field, handled separately.
 export const DAMAGE_ROWS_CONFIG = [
     { key: 'rany',        label: 'Rany',   critical: true  },
-{ key: 'zlamania',    label: 'Złam.',  critical: true  },
-{ key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
-{ key: 'temperatura', label: 'Temp.',  critical: true  },
-{ key: 'choroby',     label: 'Chor.',  critical: true  },
-{ key: 'krytyczne',   label: 'Kryt.',  critical: true  },
-{ key: 'zwykle',      label: 'Zwyk.',  critical: false },
+    { key: 'zlamania',    label: 'Złam.',  critical: true  },
+    { key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
+    { key: 'temperatura', label: 'Temp.',  critical: true  },
+    { key: 'choroby',     label: 'Chor.',  critical: true  },
+    { key: 'krytyczne',   label: 'Kryt.',  critical: true  },
+    { key: 'zwykle',      label: 'Zwyk.',  critical: false },
 ];
 
 export const MOTYWACJA_COUNT = 5;
@@ -91,32 +91,95 @@ export function formatImprovisation(level) {
 }
 
 // ------------------------------------------------------------
+// POINT POOLS
+// ------------------------------------------------------------
+// A perk can grant a lump of points instead of (or alongside) a fixed
+// stat bump. The player then spends those points themselves, one at a
+// time, via +/- buttons next to the eligible stats. Each pool tracks:
+//   - granted: a perk-only {base, modifiers} field, same as any other
+//     perk-driven stat — perks add to it via setPerkModifier().
+//   - spent:   NOT stored directly; it's derived by summing the
+//     player's own allocation modifiers (sourceId 'pool:<poolKey>')
+//     across every field the pool is allowed to target. See
+//     computePoolSpent()/adjustPoolAllocation() below.
+//
+// `targetKind` says which computeStatValue-shaped fields the pool may
+// be spent on; `allowedCharacteristics` narrows that further for the
+// 'characteristic' kind (only some characteristics are spendable).
+export const POINT_POOLS_CONFIG = [
+    {
+        key: 'characteristicPoints',
+        label: 'Punkty Charakterystyki',
+        targetKind: 'characteristic',
+        allowedCharacteristics: ['forma', 'bystrosc', 'silaWoli'],
+    },
+    {
+        key: 'skillExperiencePoints',
+        label: 'Punkty Doświadczenia',
+        targetKind: 'skillExperience', // spendable on any ability's Doświadczenie
+    },
+    {
+        key: 'skillImprovisationPoints',
+        label: 'Punkty Improwizacji',
+        targetKind: 'skillImprovisation', // spendable on any ability's Improwizacja
+    },
+];
+
+// ------------------------------------------------------------
 // EFFECT TYPES
 // ------------------------------------------------------------
-// Single source of truth for what a tree node's `effect` can target.
-// Used by editMode.js to build the inspector's effect dropdowns, and
-// by perkEffects.js to resolve the actual field to modify. Add a new
-// entry here to make a new kind of perk effect available in the
-// editor — nothing else needs to change.
+// Single source of truth for what a tree node's `effects` entries can
+// target. Used by editMode.js to build the inspector's effect
+// dropdowns, and by perkEffects.js to resolve the actual field to
+// modify. Add a new entry here to make a new kind of perk effect
+// available in the editor — nothing else needs to change.
+//
+// `needsKey: false` marks a "grant points to a pool" effect — there's
+// only one pool of each kind, so the editor's target ("Cel") dropdown
+// is skipped for these; `fieldPath()` ignores the (absent) key.
 export const EFFECT_TYPES = [
     {
         value: 'characteristic',
-        label: 'Zwiększ Charakterystykę',
+        label: 'Zwiększ Charakterystykę (stała wartość)',
         options: CHARACTERISTICS_CONFIG,
+        needsKey: true,
         fieldPath: (key) => `characteristics.${key}`,
     },
-{
-    value: 'skillExperience',
-    label: 'Zwiększ Doświadczenie Umiejętności',
-    options: ABILITIES_CONFIG,
-    fieldPath: (key) => `abilities.${key}.experience`,
-},
-{
-    value: 'skillImprovisation',
-    label: 'Zwiększ Poziom Improwizacji',
-    options: ABILITIES_CONFIG,
-    fieldPath: (key) => `abilities.${key}.improvisation`,
-},
+    {
+        value: 'skillExperience',
+        label: 'Zwiększ Doświadczenie Umiejętności (stała wartość)',
+        options: ABILITIES_CONFIG,
+        needsKey: true,
+        fieldPath: (key) => `abilities.${key}.experience`,
+    },
+    {
+        value: 'skillImprovisation',
+        label: 'Zwiększ Poziom Improwizacji (stała wartość)',
+        options: ABILITIES_CONFIG,
+        needsKey: true,
+        fieldPath: (key) => `abilities.${key}.improvisation`,
+    },
+    {
+        value: 'characteristicPoints',
+        label: 'Przyznaj Punkty Charakterystyki (Forma / Bystrość / Siła Woli)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.characteristicPoints.granted',
+    },
+    {
+        value: 'skillExperiencePoints',
+        label: 'Przyznaj Punkty Doświadczenia (dowolna Umiejętność)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.skillExperiencePoints.granted',
+    },
+    {
+        value: 'skillImprovisationPoints',
+        label: 'Przyznaj Punkty Improwizacji (dowolna Umiejętność)',
+        options: [],
+        needsKey: false,
+        fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
+    },
 ];
 
 
@@ -141,6 +204,9 @@ function buildDefaultState() {
     const damage = {};
     for (const d of DAMAGE_ROWS_CONFIG) damage[d.key] = { nZal: 0, zal: 0 };
 
+    const pointPools = {};
+    for (const p of POINT_POOLS_CONFIG) pointPools[p.key] = { granted: makeStatField(0) };
+
     return {
         name: '',
         potential:  { total: 0, available: 0 },
@@ -152,6 +218,7 @@ function buildDefaultState() {
         damage,                 // { [rowKey]: { nZal, zal } } — freely editable
         characteristics,         // { [key]: { base, modifiers } } — perk-only
         abilities,                 // { [key]: { experience, improvisation } } — perk-only
+        pointPools,                 // { [poolKey]: { granted: {base, modifiers} } } — perk-only totals; spend via adjustPoolAllocation()
         proficiencies: [],           // [{ id, label }] — freely editable
         motywacja: new Array(MOTYWACJA_COUNT).fill(false),
         perksTaken: [],                 // [{ id, name }] — populated by the perk system
@@ -210,9 +277,23 @@ function mergeWithDefaults(defaults, saved) {
         }
     }
 
+    if (saved.pointPools) {
+        for (const key of Object.keys(out.pointPools)) {
+            const savedPool = saved.pointPools[key];
+            if (savedPool && savedPool.granted && typeof savedPool.granted.base === 'number') {
+                out.pointPools[key].granted.base = savedPool.granted.base;
+            }
+        }
+    }
+
     if (Array.isArray(saved.proficiencies)) out.proficiencies = saved.proficiencies;
     if (Array.isArray(saved.motywacja) && saved.motywacja.length === MOTYWACJA_COUNT) out.motywacja = saved.motywacja;
     if (Array.isArray(saved.perksTaken)) out.perksTaken = saved.perksTaken;
+
+    // Player-spent points (modifiers with a 'pool:' sourceId) ARE restored,
+    // unlike perk modifiers — spending is a deliberate player choice, not
+    // something re-derived from which tree nodes happen to be active.
+    restorePoolModifiers(out, saved);
 
     return out;
 }
@@ -284,6 +365,28 @@ function walkStatFields(node, cb) {
 }
 
 /**
+ * Walks `outNode` (a freshly-built default field tree) alongside
+ * `savedNode` (the raw parsed JSON) and copies over only the
+ * modifiers whose sourceId starts with 'pool:' — i.e. points the
+ * player has actually spent — leaving perk-contributed modifiers
+ * (sourceId 'node:...') to be re-derived live from active tree nodes,
+ * same as before. Used by mergeWithDefaults() on load.
+ */
+function restorePoolModifiers(outNode, savedNode) {
+    if (!outNode || typeof outNode !== 'object' || !savedNode || typeof savedNode !== 'object') return;
+    if (isStatField(outNode)) {
+        if (Array.isArray(savedNode.modifiers)) {
+            const poolMods = savedNode.modifiers.filter(m => typeof m.sourceId === 'string' && m.sourceId.startsWith('pool:'));
+            if (poolMods.length) outNode.modifiers = poolMods.map(m => ({ ...m }));
+        }
+        return;
+    }
+    for (const key of Object.keys(outNode)) {
+        if (savedNode[key] !== undefined) restorePoolModifiers(outNode[key], savedNode[key]);
+    }
+}
+
+/**
  * Sets (or clears, if amount is falsy) one perk's contribution to a
  * single perk-ready field, addressed by dot-path — e.g.
  * 'characteristics.forma', 'abilities.sila.experience',
@@ -317,4 +420,91 @@ export function clearPerkModifiers(sourceId) {
 export function setPerksTaken(perkList) {
     CharacterState.perksTaken = perkList;
     saveCharacterState();
+}
+
+
+// ---- Point pools: player spending API --------------------------------
+
+/** Stable modifier source id for points a player has allocated FROM a given pool. */
+function poolAllocationSourceId(poolKey) {
+    return `pool:${poolKey}`;
+}
+
+/** Every field-path a given pool is allowed to spend into. */
+function poolTargetFieldPaths(poolKey) {
+    const cfg = POINT_POOLS_CONFIG.find(p => p.key === poolKey);
+    if (!cfg) return [];
+    if (cfg.targetKind === 'characteristic') {
+        return cfg.allowedCharacteristics.map(k => `characteristics.${k}`);
+    }
+    if (cfg.targetKind === 'skillExperience') {
+        return ABILITIES_CONFIG.map(a => `abilities.${a.key}.experience`);
+    }
+    if (cfg.targetKind === 'skillImprovisation') {
+        return ABILITIES_CONFIG.map(a => `abilities.${a.key}.improvisation`);
+    }
+    return [];
+}
+
+/** How many points from this pool are currently allocated across all its eligible fields. */
+export function computePoolSpent(poolKey) {
+    const sourceId = poolAllocationSourceId(poolKey);
+    let spent = 0;
+    for (const path of poolTargetFieldPaths(poolKey)) {
+        const field = getByPath(path);
+        const mod = field && field.modifiers.find(m => m.sourceId === sourceId);
+        if (mod) spent += Number(mod.amount) || 0;
+    }
+    return spent;
+}
+
+/** granted - spent, for the "available to spend" display. */
+export function computePoolAvailable(poolKey) {
+    const pool = CharacterState.pointPools[poolKey];
+    if (!pool) return 0;
+    return computeStatValue(pool.granted).value - computePoolSpent(poolKey);
+}
+
+/** How many points from this pool are currently sitting in one specific field (for a field's own -/+ button state). */
+export function getFieldPoolAllocation(fieldPath, poolKey) {
+    const field = getByPath(fieldPath);
+    const mod = field && field.modifiers.find(m => m.sourceId === poolAllocationSourceId(poolKey));
+    return mod ? Number(mod.amount) || 0 : 0;
+}
+
+/**
+ * Spends (delta > 0) or refunds (delta < 0, typically -1) one point
+ * from a pool into a specific field. Refuses — returning false,
+ * leaving everything unchanged — if that would refund more than was
+ * put into this field, spend more than the pool currently has
+ * available, or (for Improwizacja) push the field past level 6.
+ * Unlike perk modifiers, a successful spend IS persisted immediately.
+ *
+ * @param {string} poolKey    — e.g. 'characteristicPoints'
+ * @param {string} fieldPath  — e.g. 'characteristics.forma'
+ * @param {number} delta      — +1 to spend a point, -1 to refund one
+ * @returns {boolean}
+ */
+export function adjustPoolAllocation(poolKey, fieldPath, delta) {
+    const poolCfg = POINT_POOLS_CONFIG.find(p => p.key === poolKey);
+    const pool    = CharacterState.pointPools[poolKey];
+    const field   = getByPath(fieldPath);
+    if (!poolCfg || !pool || !isStatField(field)) return false;
+
+    const nextAlloc = getFieldPoolAllocation(fieldPath, poolKey) + delta;
+    if (nextAlloc < 0) return false; // can't refund more than was ever put here
+
+    if (delta > 0) {
+        const granted = computeStatValue(pool.granted).value;
+        if (computePoolSpent(poolKey) + delta > granted) return false; // pool is empty
+
+        if (poolCfg.targetKind === 'skillImprovisation') {
+            const { value: currentTotal } = computeStatValue(field);
+            if (currentTotal + delta > 6) return false; // dice table tops out at level 6 (+1d20)
+        }
+    }
+
+    setPerkModifier(fieldPath, poolAllocationSourceId(poolKey), nextAlloc, poolCfg.label);
+    saveCharacterState();
+    return true;
 }
