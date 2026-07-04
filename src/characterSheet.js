@@ -6,10 +6,11 @@
 // one initCharacterSheet() call builds static structure, event
 // delegation handles the rest.
 //
-// Editable by the player: Nazwa, Potencjał, resource "current"
-// values, damage table, proficiencies.
-// Everything else (Charakterystyki, Umiejętności, resource maxima)
-// is perk-only — displayed read-only here, see characterState.js.
+// Editable by the player: Nazwa, Potencjał (max perk points),
+// resource "current" values, damage table.
+// Everything else (Dostępny Potencjał, Charakterystyki, Umiejętności,
+// resource maxima, Wprawa) is perk-only or derived — displayed
+// read-only here. See characterState.js for how each is computed.
 //
 // Exports:
 //   initCharacterSheet()    — call once, after #characterPage exists.
@@ -25,6 +26,10 @@ import {
     resetCharacterState,
     computeStatValue,
     computeDamageTotal,
+    computeResourceMax,
+    computePotentialAvailable,
+    setPotentialTotal,
+    MIN_POTENTIAL,
     formatImprovisation,
     CHARACTERISTICS_CONFIG,
     ABILITIES_CONFIG,
@@ -90,6 +95,7 @@ function render() {
 
 function renderHeader() {
     const { name, potential } = CharacterState;
+    const available = computePotentialAvailable();
     return `
         <section class="charHeader" id="characterNameWrapper">
             <div class="charField charField-name">
@@ -98,11 +104,11 @@ function renderHeader() {
             </div>
             <div class="charField">
                 <label class="charField-label">Potencjał</label>
-                <input type="number" id="char-potential-total" value="${potential.total}" />
+                <input type="number" id="char-potential-total" min="${MIN_POTENTIAL}" value="${potential.total}" />
             </div>
             <div class="charField">
                 <label class="charField-label">Dostępny Potencjał</label>
-                <input type="number" id="char-potential-available" value="${potential.available}" />
+                <span class="charStat-readonly" id="char-potential-available">${available}</span>
             </div>
         </section>
     `;
@@ -118,14 +124,14 @@ function renderResources() {
                 ${renderResourceBox('Punkty Energii', 'energyPoints', energyPoints, true)}
                 ${renderResourceBox('Wytrzymałość', 'endurance', endurance, false)}
             </div>
-            <p class="charSection-hint">Maksimum ustala System Perków. Wartość bieżącą śledzisz ręcznie podczas gry.</p>
+            <p class="charSection-hint">Maksimum to wartość powiązanej Charakterystyki (Bystrość / Siła Woli / Forma). Wartość bieżącą śledzisz ręcznie podczas gry.</p>
         </section>
     `;
 }
 
-/** Current is player-editable (spent during play); Max is perk-only. */
+/** Current is player-editable (spent during play); Max is read off the linked Charakterystyka. */
 function renderResourceBox(label, key, value, hasCurrent) {
-    const max = computeStatValue(value.max);
+    const max = computeResourceMax(key);
     const maxTitle = max.isModified ? escapeHtml(modifierBreakdown(max.modifiers)) : '';
     return `
         <div class="statWrapper charResourceBox">
@@ -278,29 +284,41 @@ function renderAbilitiesSection() {
     `;
 }
 
+/**
+ * Wprawa — perk-only, like Charakterystyki/Umiejętności, but its
+ * entries aren't a fixed config list: a perk can grant a level in any
+ * named Wprawa (see characterState.js's 'proficiency' EFFECT_TYPES
+ * entry). Only entries with a level > 0 are shown — an entry with no
+ * active modifiers left (e.g. its granting perk was deactivated) just
+ * drops out of the list rather than showing "—".
+ */
 function renderProficienciesSection() {
     return `
         <section class="charSection">
             <h2 class="charSection-title">Wprawa</h2>
-            <div id="char-proficiencies-list">${renderProficienciesList()}</div>
-            <div class="charSection-addRow">
-                <input type="text" id="char-proficiency-input" placeholder="Nazwa wprawy…" />
-                <button class="charBtn" id="char-proficiency-add"><span>Dodaj</span></button>
-            </div>
+            <div id="char-perks-list-wprawa">${renderProficienciesList()}</div>
+            <p class="charSection-hint">Wprawa jest przyznawana wyłącznie przez perki.</p>
         </section>
     `;
 }
 
 function renderProficienciesList() {
-    if (CharacterState.proficiencies.length === 0) {
-        return '<p class="charSection-hint">Brak wprawy — dodaj poniżej.</p>';
+    const entries = Object.entries(CharacterState.proficiencies)
+        .map(([name, field]) => ({ name, ...computeStatValue(field) }))
+        .filter(e => e.value > 0);
+
+    if (entries.length === 0) {
+        return '<p class="charSection-hint">Brak wprawy — aktywuj odpowiednie perki w drzewku umiejętności.</p>';
     }
-    return '<ul class="charListRows">' + CharacterState.proficiencies.map(p => `
-        <li class="charListRow" data-proficiency-id="${p.id}">
-            <span>${escapeHtml(p.label)}</span>
-            <button class="charBtn charBtn-small charBtn-danger" data-remove-proficiency="${p.id}">✕</button>
-        </li>
-    `).join('') + '</ul>';
+    return '<ul class="charListRows">' + entries.map(e => {
+        const title = e.isModified ? escapeHtml(modifierBreakdown(e.modifiers)) : '';
+        return `
+            <li class="charListRow">
+                <span>${escapeHtml(e.name)}</span>
+                <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${formatImprovisation(e.value)}</span>
+            </li>
+        `;
+    }).join('') + '</ul>';
 }
 
 function renderPerksSection() {
@@ -343,16 +361,24 @@ function attachHandlers() {
         CharacterState.name = e.target.value;
         saveCharacterState();
     });
-    rootEl.querySelector('#char-potential-total').addEventListener('input', (e) => {
-        CharacterState.potential.total = Number(e.target.value) || 0;
-        saveCharacterState();
-    });
-    rootEl.querySelector('#char-potential-available').addEventListener('input', (e) => {
-        CharacterState.potential.available = Number(e.target.value) || 0;
-        saveCharacterState();
+
+    // "Potencjał" — the max perk-point budget. "Dostępny Potencjał" is
+    // read-only and derived, so it's just patched here rather than
+    // wired as its own input. setPotentialTotal() clamps to the
+    // MIN_POTENTIAL floor internally and refuses (returning false) any
+    // value that would drop below what's already spent — in that case
+    // the input snaps back to the last valid value.
+    const potentialInput     = rootEl.querySelector('#char-potential-total');
+    const potentialAvailable = rootEl.querySelector('#char-potential-available');
+    potentialInput.addEventListener('input', (e) => {
+        const ok = setPotentialTotal(e.target.value);
+        if (!ok) {
+            e.target.value = CharacterState.potential.total;
+        }
+        potentialAvailable.textContent = computePotentialAvailable();
     });
 
-    // ---- Resources ("current" only — "max" is perk-only, not editable) ----
+    // ---- Resources ("current" only — "max" is derived from Charakterystyki) ----
     rootEl.querySelectorAll('.charResource-input').forEach((input) => {
         input.addEventListener('input', (e) => {
             const { resource } = e.target.dataset;
@@ -379,35 +405,6 @@ function attachHandlers() {
         btn.addEventListener('click', () => {
             const { spendPool, spendPath, spendDelta } = btn.dataset;
             if (adjustPoolAllocation(spendPool, spendPath, Number(spendDelta))) render();
-        });
-    });
-
-    // ---- Proficiencies ----
-    const addProficiency = () => {
-        const input = rootEl.querySelector('#char-proficiency-input');
-        const label = input.value.trim();
-        if (!label) return;
-        CharacterState.proficiencies.push({ id: `prof_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, label });
-        saveCharacterState();
-        input.value = '';
-        rootEl.querySelector('#char-proficiencies-list').innerHTML = renderProficienciesList();
-        attachProficiencyRemoveHandlers();
-    };
-    rootEl.querySelector('#char-proficiency-add').addEventListener('click', addProficiency);
-    rootEl.querySelector('#char-proficiency-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addProficiency();
-    });
-    attachProficiencyRemoveHandlers();
-}
-
-function attachProficiencyRemoveHandlers() {
-    rootEl.querySelectorAll('[data-remove-proficiency]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const id = btn.dataset.removeProficiency;
-            CharacterState.proficiencies = CharacterState.proficiencies.filter(p => p.id !== id);
-            saveCharacterState();
-            rootEl.querySelector('#char-proficiencies-list').innerHTML = renderProficienciesList();
-            attachProficiencyRemoveHandlers();
         });
     });
 }

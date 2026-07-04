@@ -63,7 +63,11 @@ const AppState = {
     cameraRotationOffsetFromTree: 0,    // set to -π/2 after treeGen() loads data
 
     // ---- Game state ------------------------------------------------
-    perkPoints:  20,
+    // perkPoints was removed — the perk-point budget now lives entirely
+    // in characterState.js (CharacterState.potential.total / spent /
+    // computePotentialAvailable()), so it can be edited via the
+    // "Potencjał" field on the Character Data tab. See TreeNode.js's
+    // onClick() for where activation/deactivation checks it.
     starClasses: [],    // StarModel instances, one per TreeNode; updated by animate()
 
     // ---- Edit mode (skill-tree editor) -------------------------------

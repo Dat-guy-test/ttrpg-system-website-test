@@ -9,9 +9,8 @@
 // PERK-ONLY STAT FIELDS
 // ------------------------------------------------------------
 // Charakterystyki, both halves of every Umiejętność (Doświadczenie
-// + Improwizacja), and every resource's Maximum are NOT editable on
-// the sheet — they only change through the perk tree. Each is
-// stored as:
+// + Improwizacja), and every Wprawa entry are NOT editable on the
+// sheet — they only change through the perk tree. Each is stored as:
 //
 //   { base: number, modifiers: [{ sourceId, amount, label }] }
 //
@@ -25,6 +24,17 @@
 // 'abilities.sila.experience', 'resources.actionPoints.max') so
 // setPerkModifier() / clearPerkModifiers() work generically across
 // every perk-driven field without special-casing each group.
+//
+// Resource Maxima (Punkty Akcji/Energii, Wytrzymałość) are NOT
+// separate perk-driven fields at all — they're read directly off a
+// linked Charakterystyka (see RESOURCE_MAX_SOURCES below), so they
+// automatically track whatever perks grant that Charakterystyka.
+//
+// Wprawa (proficiencies) differs from the other perk-only fields in
+// that its keys are NOT a fixed config list — a perk effect can
+// grant a level in any named Wprawa via free text, so entries are
+// created on demand the first time a perk targets that name (see
+// setPerkModifier()'s 'proficiency:' special-case below).
 // ============================================================
 
 const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable base stats
@@ -33,54 +43,57 @@ const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable 
 
 export const CHARACTERISTICS_CONFIG = [
     { key: 'forma',    label: 'Forma' },
-    { key: 'bystrosc', label: 'Bystrość' },
-    { key: 'silaWoli', label: 'Siła Woli' },
-    { key: 'szybkosc', label: 'Szybkość' },
-    { key: 'udzwig',   label: 'Udźwig' },
+{ key: 'bystrosc', label: 'Bystrość' },
+{ key: 'silaWoli', label: 'Siła Woli' },
+{ key: 'szybkosc', label: 'Szybkość' },
+{ key: 'udzwig',   label: 'Udźwig' },
 ];
 
 export const ABILITIES_CONFIG = [
     { key: 'sila',              label: 'Siła' },
-    { key: 'wigor',              label: 'Wigor' },
-    { key: 'czasReakcji',        label: 'Czas Reakcji' },
-    { key: 'determinacja',       label: 'Determinacja' },
-    { key: 'charyzma',           label: 'Charyzma' },
-    { key: 'skradanieSie',       label: 'Skradanie się' },
-    { key: 'zrecznosc',          label: 'Zręczność' },
-    { key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
-    { key: 'instynkt',           label: 'Instynkt' },
-    { key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
-    { key: 'alchemia',           label: 'Alchemia' },
-    { key: 'inzynieria',         label: 'Inżynieria' },
-    { key: 'majsterkowanie',     label: 'Majsterkowanie' },
-    { key: 'metalurgia',         label: 'Metalurgia' },
-    { key: 'zaklinanie',         label: 'Zaklinanie' },
-    { key: 'badawczosc',         label: 'Badawczość' },
-    { key: 'uczenieSie',         label: 'Uczenie się' },
-    { key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
-    { key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
-    { key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
-    { key: 'kreacja',            label: 'Kreacja' },
-    { key: 'projekcja',          label: 'Projekcja' },
-    { key: 'transmutacja',       label: 'Transmutacja' },
-    { key: 'przywolywanie',      label: 'Przywoływanie' },
-    { key: 'destrukcja',         label: 'Destrukcja' },
+{ key: 'wigor',              label: 'Wigor' },
+{ key: 'czasReakcji',        label: 'Czas Reakcji' },
+{ key: 'determinacja',       label: 'Determinacja' },
+{ key: 'charyzma',           label: 'Charyzma' },
+{ key: 'skradanieSie',       label: 'Skradanie się' },
+{ key: 'zrecznosc',          label: 'Zręczność' },
+{ key: 'spostrzegawczosc',   label: 'Spostrzegawczość' },
+{ key: 'instynkt',           label: 'Instynkt' },
+{ key: 'wiedzaMedyczna',     label: 'Wiedza Medyczna' },
+{ key: 'alchemia',           label: 'Alchemia' },
+{ key: 'inzynieria',         label: 'Inżynieria' },
+{ key: 'majsterkowanie',     label: 'Majsterkowanie' },
+{ key: 'metalurgia',         label: 'Metalurgia' },
+{ key: 'zaklinanie',         label: 'Zaklinanie' },
+{ key: 'badawczosc',         label: 'Badawczość' },
+{ key: 'uczenieSie',         label: 'Uczenie się' },
+{ key: 'wiedzaPowszechna',   label: 'Wiedza Powszechna' },
+{ key: 'wiedzaMagiczna',     label: 'Wiedza Magiczna' },
+{ key: 'wykuwanieZaklec',    label: 'Wykuwanie Zaklęć' },
+{ key: 'kreacja',            label: 'Kreacja' },
+{ key: 'projekcja',          label: 'Projekcja' },
+{ key: 'transmutacja',       label: 'Transmutacja' },
+{ key: 'przywolywanie',      label: 'Przywoływanie' },
+{ key: 'destrukcja',         label: 'Destrukcja' },
 ];
 
 // Rows 2-7 (critical: true) get highlighted; "Zwyk." (critical: false)
 // does not. "Łącznie" is a single computed field, handled separately.
 export const DAMAGE_ROWS_CONFIG = [
     { key: 'rany',        label: 'Rany',   critical: true  },
-    { key: 'zlamania',    label: 'Złam.',  critical: true  },
-    { key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
-    { key: 'temperatura', label: 'Temp.',  critical: true  },
-    { key: 'choroby',     label: 'Chor.',  critical: true  },
-    { key: 'krytyczne',   label: 'Kryt.',  critical: true  },
-    { key: 'zwykle',      label: 'Zwyk.',  critical: false },
+{ key: 'zlamania',    label: 'Złam.',  critical: true  },
+{ key: 'wewnetrzne',  label: 'Wewn.',  critical: true  },
+{ key: 'temperatura', label: 'Temp.',  critical: true  },
+{ key: 'choroby',     label: 'Chor.',  critical: true  },
+{ key: 'krytyczne',   label: 'Kryt.',  critical: true  },
+{ key: 'zwykle',      label: 'Zwyk.',  critical: false },
 ];
 
 
-// Improvisation is a 1-6 level; level 0 means "no die yet".
+// Improvisation is a 1-6 level; level 0 means "no die yet". Also
+// reused as-is for Wprawa levels (see refreshProficiency effect type
+// below) — same dice progression, just keyed by free text instead of
+// a fixed ability list.
 export const IMPROVISATION_DICE = ['—', '+1d4', '+1d6', '+1d8', '+1d10', '+1d12', '+1d20'];
 
 /** @param {number} level @returns {string} e.g. "+1d8", or "—" at level 0 */
@@ -88,6 +101,45 @@ export function formatImprovisation(level) {
     const clamped = Math.max(0, Math.min(6, Math.round(Number(level) || 0)));
     return IMPROVISATION_DICE[clamped];
 }
+
+// ------------------------------------------------------------
+// RESOURCE MAXIMA — linked Charakterystyki
+// ------------------------------------------------------------
+// Each resource's Maximum isn't its own perk-driven field — it's
+// just whatever the linked Charakterystyka currently computes to
+// (base + perk modifiers). This means perks never need to target
+// resource maxima directly; boosting the linked Charakterystyka is
+// enough, and it's impossible for the two to drift out of sync.
+export const RESOURCE_MAX_SOURCES = {
+    actionPoints: 'bystrosc',
+    energyPoints: 'silaWoli',
+    endurance:    'forma',
+};
+
+/**
+ * @param {string} resourceKey — 'actionPoints' | 'energyPoints' | 'endurance'
+ * @returns {{ value:number, isModified:boolean, modifiers:object[] }}
+ */
+export function computeResourceMax(resourceKey) {
+    const charKey = RESOURCE_MAX_SOURCES[resourceKey];
+    const field = charKey ? CharacterState.characteristics[charKey] : null;
+    return computeStatValue(field);
+}
+
+// ------------------------------------------------------------
+// POTENCJAŁ (perk-point budget)
+// ------------------------------------------------------------
+// `potential.total` is the ONLY player-editable half of this pair —
+// it's the max number of perk points the tree can spend, with a
+// hard floor of MIN_POTENTIAL (a fresh/blank character always starts
+// with at least that many). `potential.available` is never stored;
+// it's always derived as total - spent, where "spent" is the sum of
+// nodeCost across every currently-active tree node — CharacterState
+// .perksTaken already carries each active node's cost (see
+// perkEffects.js's refreshPerksTaken()), so no separate tracking is
+// needed. setPotentialTotal() is the only way to change `total` and
+// refuses to drop it below whatever's already spent.
+export const MIN_POTENTIAL = 20;
 
 // ------------------------------------------------------------
 // POINT POOLS
@@ -112,16 +164,16 @@ export const POINT_POOLS_CONFIG = [
         targetKind: 'characteristic',
         allowedCharacteristics: ['forma', 'bystrosc', 'silaWoli'],
     },
-    {
-        key: 'skillExperiencePoints',
-        label: 'Punkty Doświadczenia',
-        targetKind: 'skillExperience', // spendable on any ability's Doświadczenie
-    },
-    {
-        key: 'skillImprovisationPoints',
-        label: 'Punkty Improwizacji',
-        targetKind: 'skillImprovisation', // spendable on any ability's Improwizacja
-    },
+{
+    key: 'skillExperiencePoints',
+    label: 'Punkty Doświadczenia',
+    targetKind: 'skillExperience', // spendable on any ability's Doświadczenie
+},
+{
+    key: 'skillImprovisationPoints',
+    label: 'Punkty Improwizacji',
+    targetKind: 'skillImprovisation', // spendable on any ability's Improwizacja
+},
 ];
 
 // ------------------------------------------------------------
@@ -136,6 +188,12 @@ export const POINT_POOLS_CONFIG = [
 // `needsKey: false` marks a "grant points to a pool" effect — there's
 // only one pool of each kind, so the editor's target ("Cel") dropdown
 // is skipped for these; `fieldPath()` ignores the (absent) key.
+//
+// `freeform: true` marks an effect whose target ISN'T one of a fixed
+// set of `options` — the editor renders a text input instead of a
+// dropdown, and the target field is auto-created the first time a
+// perk actually uses that name (see setPerkModifier()'s 'proficiency:'
+// special-case).
 export const EFFECT_TYPES = [
     {
         value: 'characteristic',
@@ -144,41 +202,49 @@ export const EFFECT_TYPES = [
         needsKey: true,
         fieldPath: (key) => `characteristics.${key}`,
     },
-    {
-        value: 'skillExperience',
-        label: 'Zwiększ Doświadczenie Umiejętności (stała wartość)',
-        options: ABILITIES_CONFIG,
-        needsKey: true,
-        fieldPath: (key) => `abilities.${key}.experience`,
-    },
-    {
-        value: 'skillImprovisation',
-        label: 'Zwiększ Poziom Improwizacji (stała wartość)',
-        options: ABILITIES_CONFIG,
-        needsKey: true,
-        fieldPath: (key) => `abilities.${key}.improvisation`,
-    },
-    {
-        value: 'characteristicPoints',
-        label: 'Przyznaj Punkty Charakterystyki (Forma / Bystrość / Siła Woli)',
-        options: [],
-        needsKey: false,
-        fieldPath: () => 'pointPools.characteristicPoints.granted',
-    },
-    {
-        value: 'skillExperiencePoints',
-        label: 'Przyznaj Punkty Doświadczenia (dowolna Umiejętność)',
-        options: [],
-        needsKey: false,
-        fieldPath: () => 'pointPools.skillExperiencePoints.granted',
-    },
-    {
-        value: 'skillImprovisationPoints',
-        label: 'Przyznaj Punkty Improwizacji (dowolna Umiejętność)',
-        options: [],
-        needsKey: false,
-        fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
-    },
+{
+    value: 'skillExperience',
+    label: 'Zwiększ Doświadczenie Umiejętności (stała wartość)',
+    options: ABILITIES_CONFIG,
+    needsKey: true,
+    fieldPath: (key) => `abilities.${key}.experience`,
+},
+{
+    value: 'skillImprovisation',
+    label: 'Zwiększ Poziom Improwizacji (stała wartość)',
+    options: ABILITIES_CONFIG,
+    needsKey: true,
+    fieldPath: (key) => `abilities.${key}.improvisation`,
+},
+{
+    value: 'proficiency',
+    label: 'Zwiększ Poziom Wprawy (dowolna nazwa)',
+    options: [],
+    needsKey: true,
+    freeform: true, // editor shows a text input for the target instead of a dropdown
+    fieldPath: (key) => `proficiency:${key}`,
+},
+{
+    value: 'characteristicPoints',
+    label: 'Przyznaj Punkty Charakterystyki (Forma / Bystrość / Siła Woli)',
+    options: [],
+    needsKey: false,
+    fieldPath: () => 'pointPools.characteristicPoints.granted',
+},
+{
+    value: 'skillExperiencePoints',
+    label: 'Przyznaj Punkty Doświadczenia (dowolna Umiejętność)',
+    options: [],
+    needsKey: false,
+    fieldPath: () => 'pointPools.skillExperiencePoints.granted',
+},
+{
+    value: 'skillImprovisationPoints',
+    label: 'Przyznaj Punkty Improwizacji (dowolna Umiejętność)',
+    options: [],
+    needsKey: false,
+    fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
+},
 ];
 
 
@@ -208,32 +274,34 @@ function buildDefaultState() {
 
     return {
         name: '',
-        potential:  { total: 0, available: 0 },
+        potential:  { total: MIN_POTENTIAL }, // 'available' is derived, never stored — see computePotentialAvailable()
         resources: {
-            actionPoints: { current: 0, max: makeStatField(0) },
-            energyPoints: { current: 0, max: makeStatField(0) },
-            endurance:    { max: makeStatField(0) },
+            // No 'max' fields here — resource maxima are read live off a
+            // linked Charakterystyka, see RESOURCE_MAX_SOURCES/computeResourceMax().
+            actionPoints: { current: 0 },
+            energyPoints: { current: 0 },
+            endurance:    {},
         },
         damage,                 // { [rowKey]: { nZal, zal } } — freely editable
         characteristics,         // { [key]: { base, modifiers } } — perk-only
         abilities,                 // { [key]: { experience, improvisation } } — perk-only
         pointPools,                 // { [poolKey]: { granted: {base, modifiers} } } — perk-only totals; spend via adjustPoolAllocation()
-        proficiencies: [],           // [{ id, label }] — freely editable
-        perksTaken: [],                 // [{ id, name }] — derived live from active tree nodes, see perkEffects.js
+        proficiencies: {},               // { [name]: { base, modifiers } } — perk-only; keys created on demand, see EFFECT_TYPES's 'proficiency' entry
+        perksTaken: [],                 // [{ id, name, cost }] — derived live from active tree nodes, see perkEffects.js
     };
 }
 
 /**
  * Merges a saved sheet on top of a fresh default shape. Only restores
  * the parts of the sheet a player can actually edit by hand (name,
- * potential, resource "current", damage, proficiencies) plus each
- * perk-field's `base`. Modifiers are never restored from storage —
- * they're derived from which tree nodes are currently active, and
- * re-applied live by perkEffects.js as the player (re)activates nodes
- * each session. `perksTaken` is the same story: it's rebuilt live from
- * whichever nodes are active, so it's deliberately never restored here
- * either — a stale list from a previous session would otherwise show
- * perks the tree doesn't actually consider active anymore.
+ * potential.total, resource "current", damage) plus each perk-field's
+ * `base`. Modifiers are never restored from storage — they're derived
+ * from which tree nodes are currently active, and re-applied live by
+ * perkEffects.js as the player (re)activates nodes each session.
+ * `perksTaken` and `proficiencies` are the same story: rebuilt/created
+ * live from whichever nodes are active, so they're deliberately never
+ * restored here either — stale data from a previous session would
+ * otherwise show perks/Wprawa the tree doesn't actually grant anymore.
  */
 function mergeWithDefaults(defaults, saved) {
     if (!saved || typeof saved !== 'object') return defaults;
@@ -241,14 +309,16 @@ function mergeWithDefaults(defaults, saved) {
     const out = defaults;
     out.name = typeof saved.name === 'string' ? saved.name : out.name;
 
-    if (saved.potential) Object.assign(out.potential, saved.potential);
+    if (saved.potential) {
+        const total = Number(saved.potential.total);
+        if (Number.isFinite(total)) out.potential.total = Math.max(MIN_POTENTIAL, Math.round(total));
+    }
 
     if (saved.resources) {
         for (const key of Object.keys(out.resources)) {
             const savedRes = saved.resources[key];
             if (!savedRes) continue;
             if ('current' in savedRes) out.resources[key].current = Number(savedRes.current) || 0;
-            if (savedRes.max && typeof savedRes.max.base === 'number') out.resources[key].max.base = savedRes.max.base;
         }
     }
 
@@ -286,8 +356,6 @@ function mergeWithDefaults(defaults, saved) {
             }
         }
     }
-
-    if (Array.isArray(saved.proficiencies)) out.proficiencies = saved.proficiencies;
 
     // Player-spent points (modifiers with a 'pool:' sourceId) ARE restored,
     // unlike perk modifiers — spending is a deliberate player choice, not
@@ -386,12 +454,33 @@ function restorePoolModifiers(outNode, savedNode) {
 }
 
 /**
+ * Finds (creating if necessary) the stat field for one named Wprawa
+ * entry. Unlike every other perk-only field, Wprawa's key-space isn't
+ * a fixed config list — a perk can target any name — so the field
+ * has to be able to spring into existence the first time something
+ * targets it, instead of being pre-built by buildDefaultState().
+ */
+function ensureProficiencyField(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return null;
+    if (!CharacterState.proficiencies[trimmed]) {
+        CharacterState.proficiencies[trimmed] = makeStatField(0);
+    }
+    return CharacterState.proficiencies[trimmed];
+}
+
+/**
  * Sets (or clears, if amount is falsy) one perk's contribution to a
  * single perk-ready field, addressed by dot-path — e.g.
- * 'characteristics.forma', 'abilities.sila.experience',
- * 'resources.actionPoints.max'. Safe to call repeatedly for the same
- * sourceId — each call replaces that source's previous modifier on
- * this field instead of stacking duplicates.
+ * 'characteristics.forma', 'abilities.sila.experience'. Safe to call
+ * repeatedly for the same sourceId — each call replaces that source's
+ * previous modifier on this field instead of stacking duplicates.
+ *
+ * A fieldPath of the form 'proficiency:<name>' is a special case:
+ * rather than being looked up (and required to already exist) via
+ * getByPath's dot-split, it's resolved/created through
+ * ensureProficiencyField() — this is what lets a perk grant Wprawa in
+ * an arbitrary, freely-typed name instead of a fixed field.
  *
  * @param {string} fieldPath
  * @param {string} sourceId  — stable id, e.g. `node:${treeNode.nodeId}`
@@ -399,7 +488,12 @@ function restorePoolModifiers(outNode, savedNode) {
  * @param {string} [label]   — human-readable reason, shown in the tooltip
  */
 export function setPerkModifier(fieldPath, sourceId, amount, label = '') {
-    const field = getByPath(fieldPath);
+    let field;
+    if (fieldPath.startsWith('proficiency:')) {
+        field = ensureProficiencyField(fieldPath.slice('proficiency:'.length));
+    } else {
+        field = getByPath(fieldPath);
+    }
     if (!isStatField(field)) {
         console.error(`CharacterState.setPerkModifier: no perk-ready field at "${fieldPath}"`);
         return;
@@ -415,10 +509,39 @@ export function clearPerkModifiers(sourceId) {
     });
 }
 
-/** Replaces the "Wybrane Perki" list shown on the sheet. */
+/** Replaces the "Wybrane Perki" list shown on the sheet. Each entry also carries its nodeCost, so computePerkPointsSpent() can total it. */
 export function setPerksTaken(perkList) {
     CharacterState.perksTaken = perkList;
     saveCharacterState();
+}
+
+/** Sum of nodeCost across every currently-active tree node (see perksTaken). */
+export function computePerkPointsSpent() {
+    return CharacterState.perksTaken.reduce((sum, p) => sum + (Number(p.cost) || 0), 0);
+}
+
+/** "Dostępny Potencjał" — total minus whatever's currently spent. Never stored; always derived. */
+export function computePotentialAvailable() {
+    return CharacterState.potential.total - computePerkPointsSpent();
+}
+
+/**
+ * Sets the "Potencjał" (max perk-point budget). Clamped to a floor of
+ * MIN_POTENTIAL. Refuses — returning false, leaving the value
+ * unchanged — if the new total would be lower than what's already
+ * spent (i.e. would make "Dostępny Potencjał" negative).
+ *
+ * @param {number|string} newTotal
+ * @returns {boolean}
+ */
+export function setPotentialTotal(newTotal) {
+    const spent  = computePerkPointsSpent();
+    const parsed = Number(newTotal);
+    const clamped = Math.max(MIN_POTENTIAL, Math.round(Number.isFinite(parsed) ? parsed : MIN_POTENTIAL));
+    if (clamped < spent) return false;
+    CharacterState.potential.total = clamped;
+    saveCharacterState();
+    return true;
 }
 
 

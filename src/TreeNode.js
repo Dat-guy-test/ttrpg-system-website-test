@@ -41,7 +41,8 @@ import { StarModel } from './StarModel.js';
 import { computePanCamera } from './cameraControls.js';
 import { handleEditModeNodeClick } from './editMode.js';
 import { applyNodeEffect, removeNodeEffect, refreshPerksTaken } from './perkEffects.js';
-
+import { applyNodeEffect, removeNodeEffect, refreshPerksTaken } from './perkEffects.js';
+import { computePotentialAvailable } from './characterState.js';
 
 export class TreeNode extends THREE.Mesh {
     /**
@@ -177,7 +178,7 @@ export class TreeNode extends THREE.Mesh {
                     }
 
                     document.getElementById('nodeCost').textContent  = 'Cost: ' + this.nodeCost;
-                    document.getElementById('perkPoints').textContent = AppState.perkPoints;
+                    document.getElementById('perkPoints').textContent = computePotentialAvailable();
                 }
 
                 onPointerOut(e) {
@@ -255,11 +256,13 @@ export class TreeNode extends THREE.Mesh {
                     }
 
                     if (this.nodeActive && !isNextActive(this.nodeId)) {
-                        // Deactivate — refund cost, restore invisible material,
-                        // remove this node's contribution to the character sheet,
-                        // and drop it from the "Wybrane Perki" list.
+                        // Deactivate — restore invisible material, remove this
+                        // node's contribution to the character sheet, and drop
+                        // it from the "Wybrane Perki" list. (Refunding its cost
+                        // happens implicitly: refreshPerksTaken() below rebuilds
+                        // CharacterState.perksTaken without this node, which is
+                        // what computePotentialAvailable() sums against.)
                         this.nodeActive   = false;
-                        AppState.perkPoints += Number(this.nodeCost);
                         this.star.material = new THREE.MeshBasicMaterial({
                             color: 0x000000, opacity: 0.0, transparent: true, depthWrite: false,
                         });
@@ -267,22 +270,23 @@ export class TreeNode extends THREE.Mesh {
                         refreshPerksTaken();
 
                     } else if (
-                        AppState.perkPoints >= this.nodeCost &&
+                        computePotentialAvailable() >= this.nodeCost &&
                         tr.areReqsMet(this.requires) &&          // ← method on Tree (avoids circular import)
                         isMutExclCritMet(this.nodeId) &&
                         !this.nodeActive
                     ) {
-                        // Activate — spend cost, apply lava-shader material,
-                        // apply this node's effect (if any) to the character
-                        // sheet, and add it to the "Wybrane Perki" list.
+                        // Activate — spend cost (implicitly, via refreshPerksTaken()
+                        // below adding this node into CharacterState.perksTaken),
+                        // apply the lava-shader material, apply this node's effect
+                        // (if any) to the character sheet, and add it to the
+                        // "Wybrane Perki" list.
                         this.nodeActive    = true;
-                        AppState.perkPoints -= Number(this.nodeCost);
                         this.star.material  = AppState.starClasses[this.starID].customMaterial;
                         applyNodeEffect(this);
                         refreshPerksTaken();
                     }
 
-                    document.getElementById('perkPoints').textContent = AppState.perkPoints;
+                    document.getElementById('perkPoints').textContent = computePotentialAvailable();
 
                     // Pan the camera to face this node
                     if (!AppState.panCamBool && !AppState.zoomCamBool) {

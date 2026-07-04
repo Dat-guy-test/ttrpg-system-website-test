@@ -85,8 +85,8 @@ export function removeNodeEffect(node) {
 export function refreshPerksTaken() {
     if (!AppState.tr) return;
     const active = AppState.tr.nodes
-        .filter(n => n.nodeActive)
-        .map(n => ({ id: n.nodeId, name: n.nodeName }));
+    .filter(n => n.nodeActive)
+    .map(n => ({ id: n.nodeId, name: n.nodeName, cost: Number(n.nodeCost) || 0 }));
     setPerksTaken(active);
     refreshCharacterSheet();
 }
