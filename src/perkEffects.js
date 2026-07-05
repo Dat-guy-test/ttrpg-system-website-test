@@ -2,14 +2,17 @@
 // PERK EFFECTS
 //
 // Bridges TreeNode/Tree (the skill tree) to characterState.js (the
-// character sheet). A tree node may carry an `effects` array — one
-// node can grant any number of independent stat bumps:
+// character sheet) and equipmentState.js (the Equipment tab). A tree
+// node may carry an `effects` array — one node can grant any number
+// of independent stat bumps:
 //
 //   effects: [
 //     { type: 'characteristic',    key: 'forma',    amount: 1 },
 //     { type: 'skillExperience',   key: 'sila',      amount: 5 },
 //     { type: 'skillImprovisation', key: 'sila',      amount: 1 },
 //     { type: 'attribute', key: 'Żądza Krwi', description: '...' },
+//     { type: 'currency', amount: 5 },
+//     { type: 'item', key: 'zestaw-skromny', amount: 1 },
 //   ]
 //
 // Each entry gets its own stable modifier source id —
@@ -19,11 +22,16 @@
 // overwriting one another.
 //
 // Most effect types are numeric and go through setPerkModifier()/
-// clearPerkModifiers() (see characterState.js). The 'attribute' type
-// is the one exception — Atrybuty carry free text, not a number — so
-// it's routed to setAttributeSource()/clearAttributeSource() instead.
-// Both apply/removeNodeEffect() below handle this with a small
-// explicit branch rather than trying to force attributes through the
+// clearPerkModifiers() (see characterState.js). Three types are
+// exceptions, each routed to its own small store instead:
+//   'attribute' — free text, not a number — setAttributeSource()/
+//                 clearAttributeSource() (characterState.js).
+//   'currency'  — fungible money, not a "base + perk modifiers"
+//                 field — addCurrency() (equipmentState.js).
+//   'item'      — a quantity in the inventory, same reasoning as
+//                 currency — addItemQuantity() (equipmentState.js).
+// Both apply/removeNodeEffect() below handle these with small
+// explicit branches rather than trying to force them through the
 // numeric-modifier machinery.
 //
 // applyNodeEffect(node)  — called from TreeNode.onClick on activation
@@ -41,10 +49,10 @@
 // function rather than being folded into apply/removeNodeEffect above.
 //
 // This module imports appState.js (a pure leaf — see its own header
-// comment — so this creates no cycle) plus characterState.js and
-// characterSheet.js — neither of which import anything tree-related —
-// so TreeNode.js and Tree.js can import this without creating a
-// circular import.
+// comment — so this creates no cycle) plus characterState.js,
+// equipmentState.js, characterSheet.js, and equipmentSheet.js — none
+// of which import anything tree-related — so TreeNode.js and Tree.js
+// can import this without creating a circular import.
 // ============================================================
 
 import AppState from './appState.js';
@@ -56,7 +64,9 @@ import {
     clearAttributeSource,
     EFFECT_TYPES,
 } from './characterState.js';
+import { addCurrency, addItemQuantity } from './equipmentState.js';
 import { refreshCharacterSheet } from './characterSheet.js';
+import { refreshEquipmentSheet } from './equipmentSheet.js';
 
 /** @param {import('./TreeNode.js').TreeNode} node */
 export function applyNodeEffect(node) {
@@ -80,6 +90,13 @@ export function applyNodeEffect(node) {
             // instead of setPerkModifier(). See characterState.js's
             // setAttributeSource()/CharacterState.attributes.
             setAttributeSource(effect.key, sourceId, effect.description || '');
+        } else if (effect.type === 'currency') {
+            // Fungible — just add to the pool. See equipmentState.js's
+            // module-level comment for why this isn't a {base,modifiers}
+            // field like everything else.
+            addCurrency(effect.amount);
+        } else if (effect.type === 'item') {
+            addItemQuantity(effect.key, effect.amount);
         } else {
             setPerkModifier(
                 effectDef.fieldPath(effect.key),
@@ -91,22 +108,35 @@ export function applyNodeEffect(node) {
     });
 
     refreshCharacterSheet();
+    refreshEquipmentSheet();
 }
 
 /** @param {import('./TreeNode.js').TreeNode} node */
 export function removeNodeEffect(node) {
     if (!Array.isArray(node.effects) || node.effects.length === 0) return;
 
-    node.effects.forEach((_, index) => {
+    node.effects.forEach((effect, index) => {
         const sourceId = `node:${node.nodeId}:${index}`;
-        // Harmless no-op if this particular effect wasn't of the
-        // matching kind — a numeric effect's sourceId was never
-        // registered with attributes, and vice versa.
-        clearPerkModifiers(sourceId);
-        clearAttributeSource(sourceId);
+
+        if (effect && effect.type === 'currency') {
+            // Best-effort refund — see equipmentState.js's module-level
+            // comment: if the player already spent below this amount the
+            // balance can go negative rather than being clamped, since
+            // clamping would silently make deactivating a perk "free".
+            addCurrency(-(Number(effect.amount) || 0));
+        } else if (effect && effect.type === 'item') {
+            addItemQuantity(effect.key, -(Number(effect.amount) || 0));
+        } else {
+            // Harmless no-op if this particular effect wasn't of the
+            // matching kind — a numeric effect's sourceId was never
+            // registered with attributes, and vice versa.
+            clearPerkModifiers(sourceId);
+            clearAttributeSource(sourceId);
+        }
     });
 
     refreshCharacterSheet();
+    refreshEquipmentSheet();
 }
 
 /**

@@ -22,12 +22,15 @@
 //   Tree           ← appState, THREE, TreeNode, cameraControls
 //   inputHandlers  ← appState, cameraControls, editMode
 //   editMode       ← appState
+//   equipmentState ← items.json (no local module imports)
+//   equipmentSheet ← equipmentState
 //   main           ← all of the above
 // =============================================================
 
 import AppState from './appState.js';
 import { initScene } from './sceneSetup.js';
 import { initCharacterSheet } from './characterSheet.js';
+import { initEquipmentSheet } from './equipmentSheet.js';
 import { Tree, treeGen } from './Tree.js';
 import {
   panCamera,
@@ -57,6 +60,8 @@ AppState.tr = new Tree(0, 40, 20, 60);
 initEditMode();
 // 3b. Build the character sheet module
 initCharacterSheet();
+// 3c. Build the equipment sheet module
+initEquipmentSheet();
 // 4. Attach all DOM event listeners
 registerInputHandlers();
 

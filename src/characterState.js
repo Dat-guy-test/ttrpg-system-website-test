@@ -43,9 +43,19 @@
 // everything above; they have their own tiny source-tracked store —
 // see the ATRYBUTY section and setAttributeSource()/
 // clearAttributeSource() further down.
+//
+// Currency and Items (equipmentState.js) are ALSO not numeric fields
+// here — they live in their own module entirely, with their own
+// storage key, because unlike every stat above they're meant to be
+// directly spent/traded by the player rather than only tracked as
+// "base + perk modifiers". 'currency' and 'item' EFFECT_TYPES below
+// are routed to equipmentState.js by perkEffects.js's small explicit
+// branch, same pattern as 'attribute'.
 // ============================================================
 
 const STORAGE_KEY = 'ttrpgCharacterSheet.v2'; // bumped: v1 sheets had editable base stats
+
+import { ITEMS_CONFIG } from './equipmentState.js';
 
 // ---- Static config: edit these arrays to add/rename/reorder fields ----
 
@@ -189,14 +199,16 @@ export const POINT_POOLS_CONFIG = [
 // and by perkEffects.js to resolve/apply the actual effect. Add a new
 // entry here to make a new kind of perk effect available in the
 // editor — nothing else needs to change (with the caveat that a
-// wholly non-numeric effect — like 'attribute' — needs a small
-// explicit branch in perkEffects.js's applyNodeEffect/removeNodeEffect,
-// since setPerkModifier() only understands numeric fields).
+// wholly non-numeric effect — like 'attribute', 'currency', or
+// 'item' — needs a small explicit branch in perkEffects.js's
+// applyNodeEffect/removeNodeEffect, since setPerkModifier() only
+// understands numeric {base,modifiers} fields).
 //
 // Per-entry flags editMode.js's effect form reads:
 //   needsKey         (default true)  — false for "grant points to a
 //                     pool" effects; there's only one pool of each
-//                     kind so no target picker is shown.
+//                     kind so no target picker is shown. Also false
+//                     for 'currency' — there's only one currency.
 //   freeform         (default false) — target ISN'T one of a fixed
 //                     `options` list; the editor shows a text input
 //                     instead of a dropdown, and the field springs
@@ -275,6 +287,25 @@ export const EFFECT_TYPES = [
         options: [],
         needsKey: false,
         fieldPath: () => 'pointPools.skillImprovisationPoints.granted',
+    },
+    {
+        value: 'currency',
+        label: 'Przyznaj Walutę (Pierścienie)',
+        options: [],
+        needsKey: false,
+        // Not used by setPerkModifier() — routed to equipmentState.js's
+        // addCurrency() instead; see perkEffects.js. Kept for consistency
+        // with every other EFFECT_TYPES entry having a fieldPath.
+        fieldPath: () => 'equipment:currency',
+    },
+    {
+        value: 'item',
+        label: 'Przyznaj Przedmiot',
+        options: ITEMS_CONFIG,
+        needsKey: true,
+        // Not used by setPerkModifier() — routed to equipmentState.js's
+        // addItemQuantity() instead; see perkEffects.js.
+        fieldPath: (key) => `equipment:item:${key}`,
     },
 ];
 
