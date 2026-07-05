@@ -1,4 +1,4 @@
-// ==============================================================
+// =============================================================
 // MAIN  —  application entry point
 //
 // This file's only jobs are:
@@ -23,7 +23,7 @@
 //   inputHandlers  ← appState, cameraControls, editMode
 //   editMode       ← appState
 //   main           ← all of the above
-// ==============================================================
+// =============================================================
 
 import AppState from './appState.js';
 import { initScene } from './sceneSetup.js';
