@@ -76,10 +76,14 @@ function render() {
             </div>
 
             ${renderHeader()}
-            ${renderResources()}
-            ${renderDamageTable()}
-            ${renderCharacteristicsSection()}
-            ${renderAbilitiesSection()}
+            <div class="charRow">
+                ${renderResources()}
+                ${renderDamageTable()}
+            </div>
+            <div class="charRow">
+                ${renderCharacteristicsSection()}
+                ${renderAbilitiesSection()}
+            </div>
             ${renderProficienciesSection()}
             ${renderAttributesSection()}
             ${renderPerksSection()}
@@ -117,35 +121,49 @@ function renderHeader() {
 }
 
 function renderResources() {
-    const { actionPoints, energyPoints, endurance } = CharacterState.resources;
+    const { actionPoints, energyPoints } = CharacterState.resources;
+
+    const apRow = renderResourceRow(
+        'Punkty Akcji',
+        `<input type="number" class="charResource-input" data-resource="actionPoints" value="${actionPoints.current}" />`,
+        computeResourceMax('actionPoints')
+    );
+    const epRow = renderResourceRow(
+        'Punkty Energii',
+        `<input type="number" class="charResource-input" data-resource="energyPoints" value="${energyPoints.current}" />`,
+        computeResourceMax('energyPoints')
+    );
+    // Wytrzymałość has no player-editable "current" — its current-column
+    // cell shows the Punkty Obrażeń total instead (see task instructions);
+    // its max is still read off the linked Charakterystyka (Forma), same
+    // as every other resource.
+    const enRow = renderResourceRow(
+        'Wytrzymałość',
+        `<span class="charStat-readonly">${computeDamageTotal()}</span>`,
+        computeResourceMax('endurance')
+    );
+
     return `
-        <section class="charSection">
+        <section class="charSection charSection-half">
             <h2 class="charSection-title">Zasoby</h2>
-            <div class="charResourceGroup">
-                ${renderResourceBox('Punkty Akcji', 'actionPoints', actionPoints, true)}
-                ${renderResourceBox('Punkty Energii', 'energyPoints', energyPoints, true)}
-                ${renderResourceBox('Wytrzymałość', 'endurance', endurance, false)}
-            </div>
-            <p class="charSection-hint">Maksimum to wartość powiązanej Charakterystyki (Bystrość / Siła Woli / Forma). Wartość bieżącą śledzisz ręcznie podczas gry.</p>
+            <table class="charTable charTable-resources">
+                <thead><tr><th>Zasób</th><th>Obecnie</th><th>Maks.</th></tr></thead>
+                <tbody>${apRow}${epRow}${enRow}</tbody>
+            </table>
+            <p class="charSection-hint">Maksimum to wartość powiązanej Charakterystyki (Bystrość / Siła Woli / Forma). Wytrzymałość: "Obecnie" pokazuje łączną liczbę Punktów Obrażeń.</p>
         </section>
     `;
 }
 
-/** Current is player-editable (spent during play); Max is read off the linked Charakterystyka. */
-function renderResourceBox(label, key, value, hasCurrent) {
-    const max = computeResourceMax(key);
+/** One row of the Zasoby table. `currentCellHtml` is either a player input or a readonly span (Wytrzymałość). */
+function renderResourceRow(label, currentCellHtml, max) {
     const maxTitle = max.isModified ? escapeHtml(modifierBreakdown(max.modifiers)) : '';
     return `
-        <div class="statWrapper charResourceBox">
-            <div class="statLabel">${escapeHtml(label)}</div>
-            <div class="statValue charResourceBox-value">
-                ${hasCurrent ? `
-                    <input type="number" class="charResource-input" data-resource="${key}" value="${value.current}" />
-                    <span class="charResourceBox-slash">/</span>
-                ` : ''}
-                <span class="charStat-readonly charResourceBox-max" ${maxTitle ? `title="${maxTitle}"` : ''}>${max.value}</span>
-            </div>
-        </div>
+        <tr>
+            <td class="charTable-rowLabel">${escapeHtml(label)}</td>
+            <td>${currentCellHtml}</td>
+            <td><span class="charStat-readonly" ${maxTitle ? `title="${maxTitle}"` : ''}>${max.value}</span></td>
+        </tr>
     `;
 }
 
@@ -162,7 +180,7 @@ function renderDamageTable() {
     }).join('');
 
     return `
-        <section class="charSection">
+        <section class="charSection charSection-half">
             <h2 class="charSection-title">Punkty Obrażeń</h2>
             <table class="dmgTable">
                 <thead>
@@ -218,27 +236,30 @@ function renderPointSpender(poolKey, fieldPath) {
 
 /** Charakterystyki — single perk-only value per stat. Forma/Bystrość/Siła Woli also get +/- spenders for Punkty Charakterystyki. */
 function renderCharacteristicsSection() {
-    const fields = CHARACTERISTICS_CONFIG.map(cfg => {
+    const rows = CHARACTERISTICS_CONFIG.map(cfg => {
         const fieldPath = `characteristics.${cfg.key}`;
         const { value, isModified, modifiers } = computeStatValue(CharacterState.characteristics[cfg.key]);
         const title = isModified ? escapeHtml(modifierBreakdown(modifiers)) : '';
         const spendable = CHARACTERISTIC_POOL && CHARACTERISTIC_POOL.allowedCharacteristics.includes(cfg.key);
 
         return `
-            <div class="statWrapper charStatField">
-                <div class="statLabel">${escapeHtml(cfg.label)}</div>
-                <div class="statValue charStatField-value">
+            <tr>
+                <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
+                <td>
                     <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${value}</span>
                     ${spendable ? renderPointSpender('characteristicPoints', fieldPath) : ''}
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
     }).join('');
 
     return `
-        <section class="charSection">
+        <section class="charSection charSection-half">
             <h2 class="charSection-title">Charakterystyki</h2>
-            <div class="charStatGrid">${fields}</div>
+            <table class="charTable charTable-characteristics">
+                <thead><tr><th>Charakterystyka</th><th>Wartość</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
         </section>
     `;
 }
@@ -250,7 +271,7 @@ function renderCharacteristicsSection() {
  *   Improwizacja (Improvisation) — a 1-6 level, spent from Punkty Improwizacji
  */
 function renderAbilitiesSection() {
-    const fields = ABILITIES_CONFIG.map(cfg => {
+    const rows = ABILITIES_CONFIG.map(cfg => {
         const ability = CharacterState.abilities[cfg.key];
         const expPath    = `abilities.${cfg.key}.experience`;
         const improvPath = `abilities.${cfg.key}.improvisation`;
@@ -260,28 +281,27 @@ function renderAbilitiesSection() {
         const improvTitle = improv.isModified ? escapeHtml(modifierBreakdown(improv.modifiers)) : '';
 
         return `
-            <div class="statWrapper charStatField charStatField-ability">
-                <div class="statLabel">${escapeHtml(cfg.label)}</div>
-                <div class="statValue charStatField-value charStatField-value-ability">
-                    <div class="charAbility-sub">
-                        <span class="charAbility-subLabel">Dośw.</span>
-                        <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
-                        ${renderPointSpender('skillExperiencePoints', expPath)}
-                    </div>
-                    <div class="charAbility-sub">
-                        <span class="charAbility-subLabel">Improw.</span>
-                        <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
-                        ${renderPointSpender('skillImprovisationPoints', improvPath)}
-                    </div>
-                </div>
-            </div>
+            <tr>
+                <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
+                <td>
+                    <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
+                    ${renderPointSpender('skillExperiencePoints', expPath)}
+                </td>
+                <td>
+                    <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
+                    ${renderPointSpender('skillImprovisationPoints', improvPath)}
+                </td>
+            </tr>
         `;
     }).join('');
 
     return `
-        <section class="charSection">
+        <section class="charSection charSection-half">
             <h2 class="charSection-title">Umiejętności</h2>
-            <div class="charStatGrid charStatGrid-abilities">${fields}</div>
+            <table class="charTable charTable-abilities">
+                <thead><tr><th>Umiejętność</th><th>Dośw.</th><th>Improw.</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
         </section>
     `;
 }
