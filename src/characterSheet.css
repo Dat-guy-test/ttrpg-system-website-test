@@ -8,7 +8,7 @@
 .charSheet {
   box-sizing: border-box;
   width: 100%;
-  max-width: 72em;
+  max-width: 56em;
   margin: 0 auto;
   padding: 1.5em 2em 3em;
   font-family: sans-serif;
@@ -105,11 +105,11 @@
    actually contributing; with no modifiers it's just a plain number. */
 .charStat-readonly {
   display: inline-block;
-  min-width: 1.6em;
+  min-width: 1.1em;
   text-align: center;
-  font-size: 1.1em;
+  font-size: 0.9em;
   font-weight: 600;
-  padding: 0.15em 0.3em;
+  padding: 0.1em 0.15em;
 }
 .charStat-readonly[title] {
   cursor: help;
@@ -160,7 +160,7 @@
 }
 .charTable th, .charTable td {
   border: 1px solid #cfcfc8;
-  padding: 0.4em 0.6em;
+  padding: 0.1em 0.2em;
   text-align: center;
 }
 .charTable th {
@@ -172,6 +172,8 @@
   text-align: left;
   font-weight: 600;
   background-color: #faf9f5;
+  width: 8em;         /* caps the label column */
+  font-size: 0.9em;  
 }
 .charTable td .charStat-readonly {
   margin-right: 0.3em;
@@ -211,8 +213,8 @@
 
 /* +/- buttons for spending pooled points into a Charakterystyka/Umiejętność */
 .charSpend-btn {
-  width: 1.5em;
-  height: 1.5em;
+  width: 1em;
+  height: 1em;
   line-height: 1;
   padding: 0;
   border-radius: 50%;
@@ -220,7 +222,7 @@
   background-color: #ffffff;
   color: rgb(146, 92, 199);
   font-weight: 700;
-  font-size: 0.85em;
+  font-size: 0.75em;
   cursor: pointer;
 }
 .charSpend-btn:hover:not(:disabled) { background-color: rgb(232, 172, 255); }
