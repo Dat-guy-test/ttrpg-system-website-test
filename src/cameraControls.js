@@ -172,3 +172,4 @@ export function freeCameraPositionUpdate() {
     if (k[' '])     { AppState.freeCamera.position.y += speed; }
     if (k['Shift']) { AppState.freeCamera.position.y -= speed; }
 }
+

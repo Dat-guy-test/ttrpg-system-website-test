@@ -454,8 +454,8 @@ export class Tree {
      */
     addNode(data) {
         const id = (data.id !== undefined && data.id !== null && data.id !== '')
-            ? String(data.id)
-            : String(AppState.nextCustomNodeId++);
+        ? String(data.id)
+        : String(AppState.nextCustomNodeId++);
 
         if (this.nodeIDs[id] !== undefined) {
             console.error(`Tree.addNode: id "${id}" is already in use — pick a different id.`);
@@ -605,8 +605,8 @@ export class Tree {
         for (const n of this.nodes) {
             if (n === node) continue;
             n.requires = n.requires
-                .map(req => Array.isArray(req) ? req.filter(m => m !== id) : req)
-                .filter(req => Array.isArray(req) ? req.length > 0 : req !== id);
+            .map(req => Array.isArray(req) ? req.filter(m => m !== id) : req)
+            .filter(req => Array.isArray(req) ? req.length > 0 : req !== id);
         }
 
         if (node.excl && Array.isArray(node.excl.members)) {
@@ -731,9 +731,9 @@ export class Tree {
 
              const node = new TreeNode(
                  String(nodeData.id), nodeData.name, nodeData.desc, nodeData.hoverText,
-                 x, y, z, fiRad, thRad,
-                 nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature,
-                 normalizeEffects(nodeData)
+                                       x, y, z, fiRad, thRad,
+                                       nodeData.requires || [], nodeData.cost, exclGroup, nodeData.temperature,
+                                       normalizeEffects(nodeData)
              );
 
              tree.nodes.push(node);
@@ -742,3 +742,4 @@ export class Tree {
 
          AppState.cameraRotationOffsetFromTree = -Math.PI / 2;
      }
+

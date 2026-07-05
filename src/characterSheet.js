@@ -32,14 +32,14 @@ import {
     setPotentialTotal,
     MIN_POTENTIAL,
     formatImprovisation,
-    CHARACTERISTICS_CONFIG,
-    ABILITIES_CONFIG,
-    DAMAGE_ROWS_CONFIG,
-    POINT_POOLS_CONFIG,
-    computePoolSpent,
-    computePoolAvailable,
-    getFieldPoolAllocation,
-    adjustPoolAllocation,
+        CHARACTERISTICS_CONFIG,
+        ABILITIES_CONFIG,
+        DAMAGE_ROWS_CONFIG,
+        POINT_POOLS_CONFIG,
+        computePoolSpent,
+        computePoolAvailable,
+        getFieldPoolAllocation,
+        adjustPoolAllocation,
 } from './characterState.js';
 
 const CHARACTERISTIC_POOL = POINT_POOLS_CONFIG.find(p => p.key === 'characteristicPoints');
@@ -69,26 +69,26 @@ export function refreshCharacterSheet() {
 // ============================================================
 function render() {
     rootEl.innerHTML = `
-        <div class="charSheet">
-            <div class="charSheet-toolbar">
-                <button class="charBtn" id="char-print-btn"><span>Drukuj</span></button>
-                <button class="charBtn charBtn-danger" id="char-reset-btn"><span>Resetuj arkusz</span></button>
-            </div>
+    <div class="charSheet">
+    <div class="charSheet-toolbar">
+    <button class="charBtn" id="char-print-btn"><span>Drukuj</span></button>
+    <button class="charBtn charBtn-danger" id="char-reset-btn"><span>Resetuj arkusz</span></button>
+    </div>
 
-            ${renderHeader()}
-            <div class="charRow">
-                ${renderResources()}
-                ${renderDamageTable()}
-            </div>
-            <div class="charRow">
-                ${renderCharacteristicsSection()}
-                ${renderAbilitiesSection()}
-            </div>
-            ${renderProficienciesSection()}
-            ${renderAttributesSection()}
-            ${renderPerksSection()}
-            ${renderPointPoolsSection()}
-        </div>
+    ${renderHeader()}
+    <div class="charRow">
+    ${renderResources()}
+    ${renderDamageTable()}
+    </div>
+    <div class="charRow">
+    ${renderCharacteristicsSection()}
+    ${renderAbilitiesSection()}
+    </div>
+    ${renderProficienciesSection()}
+    ${renderAttributesSection()}
+    ${renderPerksSection()}
+    ${renderPointPoolsSection()}
+    </div>
     `;
 
     attachHandlers();
@@ -103,20 +103,20 @@ function renderHeader() {
     const { name, potential } = CharacterState;
     const available = computePotentialAvailable();
     return `
-        <section class="charHeader" id="characterNameWrapper">
-            <div class="charField charField-name">
-                <label class="charField-label">Nazwa Postaci</label>
-                <input type="text" id="char-name" value="${escapeHtml(name)}" placeholder="Imię postaci" />
-            </div>
-            <div class="charField">
-                <label class="charField-label">Potencjał</label>
-                <input type="number" id="char-potential-total" min="${MIN_POTENTIAL}" value="${potential.total}" />
-            </div>
-            <div class="charField">
-                <label class="charField-label">Dostępny Potencjał</label>
-                <span class="charStat-readonly" id="char-potential-available">${available}</span>
-            </div>
-        </section>
+    <section class="charHeader" id="characterNameWrapper">
+    <div class="charField charField-name">
+    <label class="charField-label">Nazwa Postaci</label>
+    <input type="text" id="char-name" value="${escapeHtml(name)}" placeholder="Imię postaci" />
+    </div>
+    <div class="charField">
+    <label class="charField-label">Potencjał</label>
+    <input type="number" id="char-potential-total" min="${MIN_POTENTIAL}" value="${potential.total}" />
+    </div>
+    <div class="charField">
+    <label class="charField-label">Dostępny Potencjał</label>
+    <span class="charStat-readonly" id="char-potential-available">${available}</span>
+    </div>
+    </section>
     `;
 }
 
@@ -140,18 +140,18 @@ function renderResources() {
     const enRow = renderResourceRow(
         'Wytrzymałość',
         `<span class="charStat-readonly">${computeDamageTotal()}</span>`,
-        computeResourceMax('endurance')
+                                    computeResourceMax('endurance')
     );
 
     return `
-        <section class="charSection charSection-half">
-            <h2 class="charSection-title">Zasoby</h2>
-            <table class="charTable charTable-resources">
-                <thead><tr><th>Zasób</th><th>Obecnie</th><th>Maks.</th></tr></thead>
-                <tbody>${apRow}${epRow}${enRow}</tbody>
-            </table>
-            <p class="charSection-hint">Maksimum to wartość powiązanej Charakterystyki (Bystrość / Siła Woli / Forma). Wytrzymałość: "Obecnie" pokazuje łączną liczbę Punktów Obrażeń.</p>
-        </section>
+    <section class="charSection charSection-half">
+    <h2 class="charSection-title">Zasoby</h2>
+    <table class="charTable charTable-resources">
+    <thead><tr><th>Zasób</th><th>Obecnie</th><th>Maks.</th></tr></thead>
+    <tbody>${apRow}${epRow}${enRow}</tbody>
+    </table>
+    <p class="charSection-hint">Maksimum to wartość powiązanej Charakterystyki (Bystrość / Siła Woli / Forma). Wytrzymałość: "Obecnie" pokazuje łączną liczbę Punktów Obrażeń.</p>
+    </section>
     `;
 }
 
@@ -159,11 +159,11 @@ function renderResources() {
 function renderResourceRow(label, currentCellHtml, max) {
     const maxTitle = max.isModified ? escapeHtml(modifierBreakdown(max.modifiers)) : '';
     return `
-        <tr>
-            <td class="charTable-rowLabel">${escapeHtml(label)}</td>
-            <td>${currentCellHtml}</td>
-            <td><span class="charStat-readonly" ${maxTitle ? `title="${maxTitle}"` : ''}>${max.value}</span></td>
-        </tr>
+    <tr>
+    <td class="charTable-rowLabel">${escapeHtml(label)}</td>
+    <td>${currentCellHtml}</td>
+    <td><span class="charStat-readonly" ${maxTitle ? `title="${maxTitle}"` : ''}>${max.value}</span></td>
+    </tr>
     `;
 }
 
@@ -171,30 +171,30 @@ function renderDamageTable() {
     const rows = DAMAGE_ROWS_CONFIG.map(row => {
         const val = CharacterState.damage[row.key];
         return `
-            <tr class="${row.critical ? 'dmgTable-critical' : ''}">
-                <td class="dmgTable-rowLabel">${escapeHtml(row.label)}</td>
-                <td><input type="number" min="0" class="dmgTable-input" data-dmg-row="${row.key}" data-dmg-col="nZal" value="${val.nZal}" /></td>
-                <td><input type="number" min="0" class="dmgTable-input" data-dmg-row="${row.key}" data-dmg-col="zal" value="${val.zal}" /></td>
-            </tr>
+        <tr class="${row.critical ? 'dmgTable-critical' : ''}">
+        <td class="dmgTable-rowLabel">${escapeHtml(row.label)}</td>
+        <td><input type="number" min="0" class="dmgTable-input" data-dmg-row="${row.key}" data-dmg-col="nZal" value="${val.nZal}" /></td>
+        <td><input type="number" min="0" class="dmgTable-input" data-dmg-row="${row.key}" data-dmg-col="zal" value="${val.zal}" /></td>
+        </tr>
         `;
     }).join('');
 
     return `
-        <section class="charSection charSection-half">
-            <h2 class="charSection-title">Punkty Obrażeń</h2>
-            <table class="dmgTable">
-                <thead>
-                    <tr><th></th><th>N. Zal.</th><th>Zal.</th></tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                    <tr class="dmgTable-totalRow">
-                        <td class="dmgTable-rowLabel">Łącznie:</td>
-                        <td colspan="2"><output id="char-dmg-total">${computeDamageTotal()}</output></td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+    <section class="charSection charSection-half">
+    <h2 class="charSection-title">Punkty Obrażeń</h2>
+    <table class="dmgTable">
+    <thead>
+    <tr><th></th><th>N. Zal.</th><th>Zal.</th></tr>
+    </thead>
+    <tbody>
+    ${rows}
+    <tr class="dmgTable-totalRow">
+    <td class="dmgTable-rowLabel">Łącznie:</td>
+    <td colspan="2"><output id="char-dmg-total">${computeDamageTotal()}</output></td>
+    </tr>
+    </tbody>
+    </table>
+    </section>
     `;
 }
 
@@ -204,23 +204,23 @@ function renderPointPoolsSection() {
         const granted   = computeStatValue(CharacterState.pointPools[cfg.key].granted).value;
         const available = computePoolAvailable(cfg.key);
         return `
-            <div class="statWrapper charResourceBox">
-                <div class="statLabel">${escapeHtml(cfg.label)}</div>
-                <div class="statValue charResourceBox-value">
-                    <span class="charStat-readonly">${available}</span>
-                    <span class="charResourceBox-slash">/</span>
-                    <span class="charStat-readonly charResourceBox-max">${granted}</span>
-                </div>
-            </div>
+        <div class="statWrapper charResourceBox">
+        <div class="statLabel">${escapeHtml(cfg.label)}</div>
+        <div class="statValue charResourceBox-value">
+        <span class="charStat-readonly">${available}</span>
+        <span class="charResourceBox-slash">/</span>
+        <span class="charStat-readonly charResourceBox-max">${granted}</span>
+        </div>
+        </div>
         `;
     }).join('');
 
     return `
-        <section class="charSection">
-            <h2 class="charSection-title">Punkty do Rozdania</h2>
-            <div class="charResourceGroup">${boxes}</div>
-            <p class="charSection-hint">Przyznawane przez perki. Rozdzielaj je przyciskami +/- przy Charakterystykach i Umiejętnościach poniżej.</p>
-        </section>
+    <section class="charSection">
+    <h2 class="charSection-title">Punkty do Rozdania</h2>
+    <div class="charResourceGroup">${boxes}</div>
+    <p class="charSection-hint">Przyznawane przez perki. Rozdzielaj je przyciskami +/- przy Charakterystykach i Umiejętnościach poniżej.</p>
+    </section>
     `;
 }
 
@@ -229,8 +229,8 @@ function renderPointSpender(poolKey, fieldPath) {
     const allocatedHere = getFieldPoolAllocation(fieldPath, poolKey);
     const available     = computePoolAvailable(poolKey);
     return `
-        <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="-1" ${allocatedHere <= 0 ? 'disabled' : ''} title="Odbierz 1 punkt">–</button>
-        <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="1" ${available <= 0 ? 'disabled' : ''} title="Wydaj 1 punkt">+</button>
+    <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="-1" ${allocatedHere <= 0 ? 'disabled' : ''} title="Odbierz 1 punkt">–</button>
+    <button class="charSpend-btn" data-spend-pool="${poolKey}" data-spend-path="${fieldPath}" data-spend-delta="1" ${available <= 0 ? 'disabled' : ''} title="Wydaj 1 punkt">+</button>
     `;
 }
 
@@ -243,24 +243,24 @@ function renderCharacteristicsSection() {
         const spendable = CHARACTERISTIC_POOL && CHARACTERISTIC_POOL.allowedCharacteristics.includes(cfg.key);
 
         return `
-            <tr>
-                <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
-                <td>
-                    <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${value}</span>
-                    ${spendable ? renderPointSpender('characteristicPoints', fieldPath) : ''}
-                </td>
-            </tr>
+        <tr>
+        <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
+        <td>
+        <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${value}</span>
+        ${spendable ? renderPointSpender('characteristicPoints', fieldPath) : ''}
+        </td>
+        </tr>
         `;
     }).join('');
 
     return `
-        <section class="charSection charSection-half">
-            <h2 class="charSection-title">Charakterystyki</h2>
-            <table class="charTable charTable-characteristics">
-                <thead><tr><th>Charakterystyka</th><th>Wartość</th></tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </section>
+    <section class="charSection charSection-half">
+    <h2 class="charSection-title">Charakterystyki</h2>
+    <table class="charTable charTable-characteristics">
+    <thead><tr><th>Charakterystyka</th><th>Wartość</th></tr></thead>
+    <tbody>${rows}</tbody>
+    </table>
+    </section>
     `;
 }
 
@@ -281,28 +281,28 @@ function renderAbilitiesSection() {
         const improvTitle = improv.isModified ? escapeHtml(modifierBreakdown(improv.modifiers)) : '';
 
         return `
-            <tr>
-                <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
-                <td>
-                    <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
-                    ${renderPointSpender('skillExperiencePoints', expPath)}
-                </td>
-                <td>
-                    <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
-                    ${renderPointSpender('skillImprovisationPoints', improvPath)}
-                </td>
-            </tr>
+        <tr>
+        <td class="charTable-rowLabel">${escapeHtml(cfg.label)}</td>
+        <td>
+        <span class="charStat-readonly" ${expTitle ? `title="${expTitle}"` : ''}>${exp.value}</span>
+        ${renderPointSpender('skillExperiencePoints', expPath)}
+        </td>
+        <td>
+        <span class="charStat-readonly" ${improvTitle ? `title="${improvTitle}"` : ''}>${formatImprovisation(improv.value)}</span>
+        ${renderPointSpender('skillImprovisationPoints', improvPath)}
+        </td>
+        </tr>
         `;
     }).join('');
 
     return `
-        <section class="charSection charSection-half">
-            <h2 class="charSection-title">Umiejętności</h2>
-            <table class="charTable charTable-abilities">
-                <thead><tr><th>Umiejętność</th><th>Dośw.</th><th>Improw.</th></tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </section>
+    <section class="charSection charSection-half">
+    <h2 class="charSection-title">Umiejętności</h2>
+    <table class="charTable charTable-abilities">
+    <thead><tr><th>Umiejętność</th><th>Dośw.</th><th>Improw.</th></tr></thead>
+    <tbody>${rows}</tbody>
+    </table>
+    </section>
     `;
 }
 
@@ -316,18 +316,18 @@ function renderAbilitiesSection() {
  */
 function renderProficienciesSection() {
     return `
-        <section class="charSection">
-            <h2 class="charSection-title">Wprawa</h2>
-            <div id="char-perks-list-wprawa">${renderProficienciesList()}</div>
-            <p class="charSection-hint">Wprawa jest przyznawana wyłącznie przez perki.</p>
-        </section>
+    <section class="charSection">
+    <h2 class="charSection-title">Wprawa</h2>
+    <div id="char-perks-list-wprawa">${renderProficienciesList()}</div>
+    <p class="charSection-hint">Wprawa jest przyznawana wyłącznie przez perki.</p>
+    </section>
     `;
 }
 
 function renderProficienciesList() {
     const entries = Object.entries(CharacterState.proficiencies)
-        .map(([name, field]) => ({ name, ...computeStatValue(field) }))
-        .filter(e => e.value > 0);
+    .map(([name, field]) => ({ name, ...computeStatValue(field) }))
+    .filter(e => e.value > 0);
 
     if (entries.length === 0) {
         return '<p class="charSection-hint">Brak wprawy — aktywuj odpowiednie perki w drzewku umiejętności.</p>';
@@ -335,10 +335,10 @@ function renderProficienciesList() {
     return '<ul class="charListRows">' + entries.map(e => {
         const title = e.isModified ? escapeHtml(modifierBreakdown(e.modifiers)) : '';
         return `
-            <li class="charListRow">
-                <span>${escapeHtml(e.name)}</span>
-                <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${formatImprovisation(e.value)}</span>
-            </li>
+        <li class="charListRow">
+        <span>${escapeHtml(e.name)}</span>
+        <span class="charStat-readonly" ${title ? `title="${title}"` : ''}>${formatImprovisation(e.value)}</span>
+        </li>
         `;
     }).join('') + '</ul>';
 }
@@ -355,11 +355,11 @@ function renderProficienciesList() {
  */
 function renderAttributesSection() {
     return `
-        <section class="charSection">
-            <h2 class="charSection-title">Atrybuty</h2>
-            <div id="char-attributes-list">${renderAttributesList()}</div>
-            <p class="charSection-hint">Atrybuty są przyznawane wyłącznie przez perki.</p>
-        </section>
+    <section class="charSection">
+    <h2 class="charSection-title">Atrybuty</h2>
+    <div id="char-attributes-list">${renderAttributesList()}</div>
+    <p class="charSection-hint">Atrybuty są przyznawane wyłącznie przez perki.</p>
+    </section>
     `;
 }
 
@@ -370,19 +370,19 @@ function renderAttributesList() {
         return '<p class="charSection-hint">Brak atrybutów — aktywuj odpowiednie perki w drzewku umiejętności.</p>';
     }
     return '<ul class="charListRows charListRows-attributes">' + entries.map(([name, entry]) => `
-        <li class="charListRow charListRow-attribute">
-            <span class="charAttribute-name">${escapeHtml(name)}</span>
-            <span class="charAttribute-desc">${escapeHtml(entry.description)}</span>
-        </li>
+    <li class="charListRow charListRow-attribute">
+    <span class="charAttribute-name">${escapeHtml(name)}</span>
+    <span class="charAttribute-desc">${escapeHtml(entry.description)}</span>
+    </li>
     `).join('') + '</ul>';
 }
 
 function renderPerksSection() {
     return `
-        <section class="charSection">
-            <h2 class="charSection-title">Wybrane Perki</h2>
-            <div id="char-perks-list">${renderPerksList()}</div>
-        </section>
+    <section class="charSection">
+    <h2 class="charSection-title">Wybrane Perki</h2>
+    <div id="char-perks-list">${renderPerksList()}</div>
+    </section>
     `;
 }
 
@@ -391,7 +391,7 @@ function renderPerksList() {
         return '<p class="charSection-hint">Brak wybranych perków — aktywuj węzły w drzewku umiejętności.</p>';
     }
     return '<ul class="charListRows">' + CharacterState.perksTaken.map(p => `
-        <li class="charListRow"><span>${escapeHtml(p.name)}</span></li>
+    <li class="charListRow"><span>${escapeHtml(p.name)}</span></li>
     `).join('') + '</ul>';
 }
 
@@ -471,8 +471,9 @@ function attachHandlers() {
 // ============================================================
 function escapeHtml(str) {
     return String(str ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
+
